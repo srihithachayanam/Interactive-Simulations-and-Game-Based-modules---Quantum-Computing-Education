@@ -1,0 +1,2140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Station 04 — Operation Entangle</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #04060d;
+  --panel: #0f1628;
+  --border: #1a2540;
+  --cyan: #00e5ff;
+  --teal: #00ffcc;
+  --amber: #f59e0b;
+  --green: #10b981;
+  --red: #ef4444;
+  --muted: #4a5568;
+  --text: #c8d6e5;
+  --dim: #6b7a94;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Space Mono', monospace;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* SCANLINE OVERLAY */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,229,255,0.015) 2px, rgba(0,229,255,0.015) 4px);
+  pointer-events: none;
+  z-index: 9999;
+}
+
+/* HEADER */
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 24px;
+  border-bottom: 1px solid var(--border);
+  background: rgba(15,22,40,0.9);
+  backdrop-filter: blur(10px);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.station-tag {
+  font-family: 'Space Mono', monospace;
+  font-size: 10px;
+  color: var(--cyan);
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  border: 1px solid var(--cyan);
+  padding: 3px 8px;
+}
+
+.station-title {
+  font-family: 'Syne', sans-serif;
+  font-size: 18px;
+  font-weight: 800;
+  color: #fff;
+  letter-spacing: 1px;
+}
+
+.back-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--dim);
+  font-family: 'Space Mono', monospace;
+  font-size: 11px;
+  padding: 6px 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+  letter-spacing: 1px;
+}
+.back-btn:hover { border-color: var(--cyan); color: var(--cyan); }
+
+.level-indicators {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.level-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: transparent;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+.level-dot.active { background: var(--cyan); border-color: var(--cyan); box-shadow: 0 0 8px var(--cyan); }
+.level-dot.done { background: var(--teal); border-color: var(--teal); }
+
+/* MISSION BRIEFING STRIP */
+.mission-strip {
+  background: rgba(0,229,255,0.04);
+  border-bottom: 1px solid rgba(0,229,255,0.15);
+  padding: 12px 24px;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+
+.mission-tag {
+  font-size: 10px;
+  color: var(--cyan);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.mission-text {
+  font-size: 12px;
+  color: var(--text);
+  line-height: 1.5;
+  flex: 1;
+}
+
+.package-display {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  min-width: 80px;
+}
+
+.package-label {
+  font-size: 9px;
+  color: var(--amber);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+
+.qubit-dial {
+  width: 60px;
+  height: 60px;
+  position: relative;
+}
+
+/* MAIN LAYOUT */
+.main-area {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: auto 1fr auto;
+  gap: 0;
+  min-height: calc(100vh - 120px);
+}
+
+/* ENTANGLED LINK (spans full width) */
+.entangle-bar {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 24px;
+  background: rgba(0,255,204,0.03);
+  border-bottom: 1px solid rgba(0,255,204,0.1);
+  gap: 12px;
+  position: relative;
+}
+
+.entangle-label {
+  font-size: 9px;
+  color: var(--teal);
+  letter-spacing: 2px;
+  white-space: nowrap;
+}
+
+.entangle-line {
+  flex: 1;
+  height: 2px;
+  background: linear-gradient(90deg, var(--teal), rgba(0,255,204,0.3), var(--teal));
+  position: relative;
+  overflow: hidden;
+}
+
+.entangle-pulse {
+  position: absolute;
+  top: -2px;
+  width: 20px;
+  height: 6px;
+  background: var(--teal);
+  border-radius: 3px;
+  filter: blur(2px);
+  animation: entanglePulse 2s linear infinite;
+}
+
+@keyframes entanglePulse {
+  from { left: -20px; opacity: 1; }
+  to { left: 100%; opacity: 0.3; }
+}
+
+.entangle-line.noisy {
+  animation: noisyFlicker 0.5s ease-in-out infinite alternate;
+}
+
+@keyframes noisyFlicker {
+  from { opacity: 1; }
+  to { opacity: 0.4; }
+}
+
+/* WORKSPACE PANELS */
+.workspace {
+  padding: 20px 24px;
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.workspace:last-of-type { border-right: none; }
+
+.workspace-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.agent-tag {
+  font-family: 'Syne', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.agent-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  animation: agentPulse 2s ease-in-out infinite;
+}
+
+@keyframes agentPulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(0.8); }
+}
+
+.agent-dot.alice { background: var(--cyan); box-shadow: 0 0 6px var(--cyan); }
+.agent-dot.bob { background: var(--teal); box-shadow: 0 0 6px var(--teal); }
+
+.workspace-status {
+  font-size: 10px;
+  color: var(--dim);
+  letter-spacing: 1px;
+}
+
+/* QUBIT TILES */
+.qubit-row {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.qubit-tile {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  padding: 12px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  position: relative;
+  transition: all 0.3s;
+}
+
+.qubit-tile.active { border-color: var(--cyan); box-shadow: 0 0 12px rgba(0,229,255,0.1); }
+.qubit-tile.entangled { border-color: var(--teal); box-shadow: 0 0 12px rgba(0,255,204,0.1); }
+.qubit-tile.measured { border-color: var(--amber); }
+.qubit-tile.success { border-color: var(--green); box-shadow: 0 0 12px rgba(16,185,129,0.2); }
+
+.qubit-tile-label {
+  font-size: 9px;
+  color: var(--dim);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+
+.qubit-canvas-wrap {
+  position: relative;
+  width: 70px;
+  height: 70px;
+}
+
+.qubit-state-text {
+  font-size: 10px;
+  color: var(--cyan);
+  text-align: center;
+}
+
+/* GATE PANEL */
+.gate-panel {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  padding: 12px;
+}
+
+.gate-panel-label {
+  font-size: 9px;
+  color: var(--dim);
+  letter-spacing: 2px;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+}
+
+.gate-sequence {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.gate-slot {
+  width: 44px;
+  height: 44px;
+  border: 1px dashed var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  color: var(--dim);
+  transition: all 0.2s;
+  cursor: pointer;
+  position: relative;
+}
+
+.gate-slot.filled {
+  border-style: solid;
+  border-color: var(--cyan);
+  color: var(--cyan);
+  background: rgba(0,229,255,0.05);
+}
+
+.gate-slot.wrong {
+  border-color: var(--red);
+  color: var(--red);
+  background: rgba(239,68,68,0.1);
+  animation: shake 0.3s ease-in-out;
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-4px); }
+  75% { transform: translateX(4px); }
+}
+
+.gate-arrow { color: var(--border); font-size: 14px; }
+
+.available-gates {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.gate-btn {
+  padding: 6px 12px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-family: 'Space Mono', monospace;
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.2s;
+  min-width: 44px;
+  text-align: center;
+}
+
+.gate-btn:hover {
+  border-color: var(--cyan);
+  color: var(--cyan);
+  background: rgba(0,229,255,0.05);
+}
+
+.gate-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+/* ACTION BUTTONS */
+.action-btn {
+  width: 100%;
+  padding: 10px 16px;
+  font-family: 'Space Mono', monospace;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: 1px solid;
+  position: relative;
+  overflow: hidden;
+}
+
+.action-btn::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: currentColor;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.action-btn:hover::before { opacity: 0.07; }
+.action-btn:active::before { opacity: 0.15; }
+
+.action-btn.primary {
+  background: rgba(0,229,255,0.08);
+  border-color: var(--cyan);
+  color: var(--cyan);
+}
+
+.action-btn.secondary {
+  background: rgba(0,255,204,0.08);
+  border-color: var(--teal);
+  color: var(--teal);
+}
+
+.action-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+/* CORRECTION MENU */
+.correction-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.correction-btn {
+  padding: 10px 8px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-family: 'Space Mono', monospace;
+  font-size: 10px;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: center;
+  line-height: 1.5;
+}
+
+.correction-btn:hover {
+  border-color: var(--teal);
+  background: rgba(0,255,204,0.05);
+}
+
+.correction-btn.selected {
+  border-color: var(--teal);
+  background: rgba(0,255,204,0.1);
+  color: var(--teal);
+}
+
+.correction-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+/* CLASSICAL CHANNEL STRIP */
+.channel-strip {
+  grid-column: 1 / -1;
+  border-top: 1px solid var(--border);
+  padding: 16px 24px;
+  background: rgba(0,0,0,0.2);
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.channel-label {
+  font-size: 9px;
+  color: var(--dim);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.channel-track {
+  flex: 1;
+  height: 2px;
+  background: var(--border);
+  position: relative;
+  margin: 0 20px;
+}
+
+.channel-dots {
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(90deg, var(--border) 0, var(--border) 4px, transparent 4px, transparent 12px);
+}
+
+.bit-particle {
+  position: absolute;
+  top: -8px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--amber);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  font-weight: 700;
+  color: #000;
+  box-shadow: 0 0 12px var(--amber);
+  transition: left 1.5s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 10;
+}
+
+.bit-particle.bit2 {
+  top: 4px;
+}
+
+.eve-container {
+  position: absolute;
+  top: -50px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.eve-icon {
+  font-size: 20px;
+  filter: grayscale(1) brightness(0.6);
+  transition: all 0.3s;
+  cursor: default;
+}
+
+.eve-icon.active {
+  filter: none;
+  animation: eveSpin 0.3s ease-in-out;
+}
+
+@keyframes eveSpin {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.3); }
+  100% { transform: scale(1); }
+}
+
+.eve-bubble {
+  background: rgba(239,68,68,0.1);
+  border: 1px solid rgba(239,68,68,0.3);
+  color: var(--red);
+  font-size: 9px;
+  padding: 4px 8px;
+  white-space: nowrap;
+  opacity: 0;
+  transform: translateY(4px);
+  transition: all 0.4s;
+  max-width: 200px;
+  text-align: center;
+  line-height: 1.4;
+}
+
+.eve-bubble.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* BIT DISPLAY */
+.bit-display {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.bit-box {
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 700;
+  transition: all 0.3s;
+  background: var(--panel);
+}
+
+.bit-box.set-0 { border-color: var(--teal); color: var(--teal); background: rgba(0,255,204,0.05); }
+.bit-box.set-1 { border-color: var(--amber); color: var(--amber); background: rgba(245,158,11,0.05); }
+
+/* STEP INDICATOR */
+.step-indicator {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.step-pip {
+  width: 24px;
+  height: 3px;
+  background: var(--border);
+  transition: all 0.3s;
+}
+
+.step-pip.active { background: var(--cyan); box-shadow: 0 0 6px var(--cyan); }
+.step-pip.done { background: var(--teal); }
+
+/* PROMPT BOX */
+.prompt-box {
+  background: rgba(0,229,255,0.05);
+  border: 1px solid rgba(0,229,255,0.2);
+  border-left: 3px solid var(--cyan);
+  padding: 10px 14px;
+  font-size: 11px;
+  color: var(--text);
+  line-height: 1.6;
+  animation: promptFade 0.3s ease-out;
+}
+
+@keyframes promptFade {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.prompt-box.error {
+  border-color: var(--red);
+  border-left-color: var(--red);
+  background: rgba(239,68,68,0.05);
+  color: var(--red);
+}
+
+.prompt-box.success {
+  border-color: var(--green);
+  border-left-color: var(--green);
+  background: rgba(16,185,129,0.05);
+  color: var(--green);
+}
+
+/* TEACHING MOMENT */
+.teaching-moment {
+  background: rgba(245,158,11,0.05);
+  border: 1px solid rgba(245,158,11,0.2);
+  padding: 10px 14px;
+  font-size: 11px;
+  color: var(--amber);
+  line-height: 1.6;
+  display: none;
+}
+
+.teaching-moment.show { display: block; animation: promptFade 0.3s ease-out; }
+
+/* RELAY NETWORK */
+.relay-network {
+  display: none;
+  padding: 20px 24px;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.relay-network.visible { display: flex; }
+
+.relay-track {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  position: relative;
+}
+
+.relay-node {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  min-width: 110px;
+}
+
+.relay-node-box {
+  width: 90px;
+  height: 90px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  transition: all 0.3s;
+}
+
+.relay-node-box.active { border-color: var(--cyan); box-shadow: 0 0 12px rgba(0,229,255,0.15); }
+.relay-node-box.done { border-color: var(--green); }
+
+.relay-node-label {
+  font-size: 9px;
+  color: var(--dim);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+
+.relay-link {
+  flex: 1;
+  height: 2px;
+  background: linear-gradient(90deg, var(--teal), rgba(0,255,204,0.3), var(--teal));
+  position: relative;
+  overflow: hidden;
+}
+
+.relay-link-pulse {
+  position: absolute;
+  top: -2px;
+  width: 14px;
+  height: 6px;
+  background: var(--teal);
+  border-radius: 3px;
+  filter: blur(1px);
+  animation: entanglePulse 1.5s linear infinite;
+}
+
+/* NOISE INDICATOR */
+.noise-warning {
+  background: rgba(239,68,68,0.08);
+  border: 1px solid rgba(239,68,68,0.25);
+  padding: 8px 12px;
+  font-size: 11px;
+  color: var(--red);
+  display: none;
+}
+.noise-warning.show { display: block; animation: promptFade 0.3s; }
+
+/* SUCCESS OVERLAY */
+.success-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(4,6,13,0.85);
+  z-index: 200;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.success-overlay.show { display: flex; }
+
+.success-box {
+  background: var(--panel);
+  border: 1px solid var(--green);
+  padding: 32px 48px;
+  text-align: center;
+  max-width: 480px;
+  box-shadow: 0 0 40px rgba(16,185,129,0.2);
+}
+
+.success-title {
+  font-family: 'Syne', sans-serif;
+  font-size: 28px;
+  font-weight: 800;
+  color: var(--green);
+  margin-bottom: 12px;
+}
+
+.success-desc {
+  font-size: 12px;
+  color: var(--text);
+  line-height: 1.7;
+  margin-bottom: 20px;
+}
+
+.success-btns { display: flex; gap: 12px; justify-content: center; }
+
+/* LEVEL SELECT */
+.level-select-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(4,6,13,0.92);
+  z-index: 150;
+  align-items: center;
+  justify-content: center;
+}
+
+.level-select-overlay.show { display: flex; }
+
+.level-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  max-width: 600px;
+  padding: 32px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+}
+
+.level-card {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  padding: 16px 12px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.level-card:hover {
+  border-color: var(--cyan);
+  background: rgba(0,229,255,0.04);
+}
+
+.level-card.locked { opacity: 0.35; cursor: not-allowed; }
+.level-card.done { border-color: var(--teal); }
+
+.level-num {
+  font-family: 'Syne', sans-serif;
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--cyan);
+}
+
+.level-name {
+  font-size: 9px;
+  color: var(--dim);
+  letter-spacing: 1px;
+  line-height: 1.4;
+}
+
+/* MISC */
+.flex { display: flex; }
+.flex-col { flex-direction: column; }
+.gap-8 { gap: 8px; }
+.gap-12 { gap: 12px; }
+
+.text-muted { color: var(--dim); font-size: 10px; }
+.text-cyan { color: var(--cyan); }
+.text-teal { color: var(--teal); }
+.text-amber { color: var(--amber); }
+.text-green { color: var(--green); }
+.text-red { color: var(--red); }
+
+.section-label {
+  font-size: 9px;
+  color: var(--dim);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+
+/* ANIMATIONS */
+@keyframes bitTravel {
+  0% { left: 0%; opacity: 0; transform: scale(0.5); }
+  10% { opacity: 1; transform: scale(1); }
+  90% { opacity: 1; transform: scale(1); }
+  100% { left: 94%; opacity: 0; transform: scale(0.5); }
+}
+
+.bit-travelling {
+  animation: bitTravel 1.8s ease-in-out forwards;
+}
+
+@keyframes qubitFlash {
+  0% { background: rgba(0,255,204,0.3); }
+  100% { background: transparent; }
+}
+
+.qubit-reconstructed {
+  animation: qubitFlash 0.8s ease-out;
+}
+
+@keyframes destructionPulse {
+  0% { box-shadow: 0 0 0 0 rgba(239,68,68,0.4); }
+  50% { box-shadow: 0 0 0 10px rgba(239,68,68,0); }
+  100% { box-shadow: none; }
+}
+
+.qubit-destroyed { animation: destructionPulse 0.6s ease-out; }
+
+/* NO-CLONING INDICATOR */
+.no-clone-badge {
+  font-size: 9px;
+  color: var(--red);
+  border: 1px solid rgba(239,68,68,0.3);
+  padding: 2px 6px;
+  display: none;
+}
+.no-clone-badge.show { display: inline-block; }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="header-left">
+    <div class="station-tag">STN 04</div>
+    <div class="station-title">OPERATION ENTANGLE</div>
+  </div>
+  <div class="level-indicators" id="levelDots"></div>
+  <div style="display:flex;gap:8px;align-items:center">
+    <button class="back-btn" onclick="showLevelSelect()">LEVELS</button>
+    <button class="back-btn" onclick="goBackToLab()">◄ LAB</button>
+  </div>
+</div>
+
+<!-- MISSION BRIEFING STRIP -->
+<div class="mission-strip">
+  <div class="mission-tag" id="missionTag">MISSION 01</div>
+  <div class="mission-text" id="missionText">Loading mission briefing...</div>
+  <div class="package-display">
+    <div class="package-label">PACKAGE</div>
+    <div class="qubit-dial">
+      <canvas id="packageDial" width="60" height="60"></canvas>
+    </div>
+  </div>
+</div>
+
+<!-- NARRATIVE LAYOUT (Levels 1-4) -->
+<div id="narrativeLayout">
+  <!-- ENTANGLED LINK -->
+  <div class="main-area">
+    <div class="entangle-bar" style="grid-column:1/-1">
+      <div class="entangle-label">ALICE</div>
+      <div class="entangle-line" id="entangleLine">
+        <div class="entangle-pulse"></div>
+      </div>
+      <div class="entangle-label">BOB</div>
+      <div style="font-size:9px;color:var(--teal);margin-left:16px;letter-spacing:1px;">⚛ ENTANGLED PAIR SHARED</div>
+    </div>
+
+    <!-- ALICE'S WORKSPACE -->
+    <div class="workspace" id="aliceWorkspace">
+      <div class="workspace-header">
+        <div class="agent-tag">
+          <div class="agent-dot alice"></div>
+          <span style="color:#fff;">ALICE</span>
+          <span style="color:var(--dim);font-size:11px;font-weight:400;">Field Agent</span>
+        </div>
+        <div id="aliceStatus" class="workspace-status">AWAITING ORDERS</div>
+      </div>
+
+      <!-- Step indicator -->
+      <div class="step-indicator" id="stepIndicator">
+        <div class="step-pip" id="step1pip"></div>
+        <div class="step-pip" id="step2pip"></div>
+        <div class="step-pip" id="step3pip"></div>
+      </div>
+
+      <!-- Prompt -->
+      <div class="prompt-box" id="promptBox">Initializing mission...</div>
+
+      <!-- Qubit row -->
+      <div class="qubit-row">
+        <div class="qubit-tile" id="packageTile">
+          <div class="qubit-tile-label">PACKAGE ψ</div>
+          <div class="qubit-canvas-wrap">
+            <canvas id="packageQubit" width="70" height="70"></canvas>
+          </div>
+          <div class="qubit-state-text" id="packageStateText">|ψ⟩</div>
+          <div class="no-clone-badge" id="noCloneBadge">DESTROYED</div>
+        </div>
+        <div class="qubit-tile" id="aliceTile">
+          <div class="qubit-tile-label">ALICE'S QUBIT</div>
+          <div class="qubit-canvas-wrap">
+            <canvas id="aliceQubit" width="70" height="70"></canvas>
+          </div>
+          <div class="qubit-state-text" id="aliceStateText">|0⟩</div>
+        </div>
+      </div>
+
+      <!-- Gate Panel -->
+      <div class="gate-panel" id="gatePanel">
+        <div class="gate-panel-label">GATE SEQUENCE — apply in correct order</div>
+        <div class="gate-sequence">
+          <div class="gate-slot" id="slot0" onclick="removeGate(0)"><span class="text-muted">①</span></div>
+          <div class="gate-arrow">→</div>
+          <div class="gate-slot" id="slot1" onclick="removeGate(1)"><span class="text-muted">②</span></div>
+        </div>
+        <div class="section-label">AVAILABLE GATES</div>
+        <div class="available-gates" id="availableGates"></div>
+        <div style="margin-top:8px;">
+          <button class="action-btn primary" id="entangleMeasureBtn" onclick="executeMeasure()" disabled>
+            ⚡ ENTANGLE & MEASURE
+          </button>
+        </div>
+      </div>
+
+      <!-- Bit display -->
+      <div class="flex gap-8 align-items-center" style="display:none;" id="bitDisplayRow">
+        <div class="section-label" style="margin:0">MEASUREMENT RESULT:</div>
+        <div class="bit-display">
+          <div class="bit-box" id="bit1Box">?</div>
+          <div class="bit-box" id="bit2Box">?</div>
+        </div>
+        <button class="action-btn primary" id="sendBitsBtn" onclick="sendBits()" style="width:auto;padding:8px 16px;font-size:11px;" disabled>
+          TRANSMIT →
+        </button>
+      </div>
+
+    </div>
+
+    <!-- BOB'S WORKSPACE -->
+    <div class="workspace" id="bobWorkspace">
+      <div class="workspace-header">
+        <div class="agent-tag">
+          <div class="agent-dot bob"></div>
+          <span style="color:#fff;">BOB</span>
+          <span style="color:var(--dim);font-size:11px;font-weight:400;">Handler at HQ</span>
+        </div>
+        <div id="bobStatus" class="workspace-status">STANDING BY</div>
+      </div>
+
+      <div style="height:36px;"></div>
+
+      <div class="prompt-box" id="bobPromptBox" style="background:rgba(0,255,204,0.04);border-color:rgba(0,255,204,0.2);border-left-color:var(--teal);">
+        Awaiting classical bits from Alice...
+      </div>
+
+      <!-- Bob's qubit -->
+      <div class="qubit-row">
+        <div class="qubit-tile" id="bobTile">
+          <div class="qubit-tile-label">BOB'S QUBIT</div>
+          <div class="qubit-canvas-wrap">
+            <canvas id="bobQubit" width="70" height="70"></canvas>
+          </div>
+          <div class="qubit-state-text" id="bobStateText">|?⟩</div>
+        </div>
+        <div style="flex:1;background:var(--panel);border:1px solid var(--border);padding:12px;display:flex;flex-direction:column;gap:4px;align-items:center;justify-content:center;">
+          <div class="text-muted" style="font-size:9px;letter-spacing:1px;">RECEIVED BITS</div>
+          <div class="bit-display" id="bobBitDisplay">
+            <div class="bit-box" id="bobBit1">?</div>
+            <div class="bit-box" id="bobBit2">?</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Teaching moment: no FTL -->
+      <div class="teaching-moment" id="ftlMoment">
+        ⚠ <strong>WHY THIS ISN'T FTL:</strong> Bob cannot reconstruct the state until he receives Alice's 2 classical bits. Those travel at normal speed — no faster-than-light communication is possible.
+      </div>
+
+      <!-- Correction menu -->
+      <div id="correctionSection" style="display:none;">
+        <div class="section-label" style="margin-bottom:8px;">SELECT CORRECTION — match the 2 received bits:</div>
+        <div class="correction-grid">
+          <button class="correction-btn" id="corr00" onclick="selectCorrection('00')">
+            <div style="color:var(--cyan);font-size:13px;font-weight:700;">00</div>
+            <div>No operation (I)</div>
+          </button>
+          <button class="correction-btn" id="corr01" onclick="selectCorrection('01')">
+            <div style="color:var(--amber);font-size:13px;font-weight:700;">01</div>
+            <div>Apply X gate</div>
+          </button>
+          <button class="correction-btn" id="corr10" onclick="selectCorrection('10')">
+            <div style="color:var(--teal);font-size:13px;font-weight:700;">10</div>
+            <div>Apply Z gate</div>
+          </button>
+          <button class="correction-btn" id="corr11" onclick="selectCorrection('11')">
+            <div style="color:var(--dim);font-size:13px;font-weight:700;">11</div>
+            <div>Apply X then Z</div>
+          </button>
+        </div>
+        <div style="margin-top:10px;">
+          <button class="action-btn secondary" id="reconstructBtn" onclick="reconstruct()" disabled>
+            ↺ RECONSTRUCT STATE
+          </button>
+        </div>
+      </div>
+
+      <!-- Teaching moment: no cloning -->
+      <div class="teaching-moment" id="noCloningMoment">
+        ⚠ <strong>NO-CLONING:</strong> Alice's original package qubit was DESTROYED by her measurement. The quantum state was teleported — not copied. This is the no-cloning theorem in action.
+      </div>
+    </div>
+
+    <!-- CLASSICAL CHANNEL -->
+    <div class="channel-strip" style="grid-column:1/-1">
+      <div class="channel-label">CLASSICAL<br>CHANNEL</div>
+      <div style="flex:1;position:relative;height:32px;">
+        <div class="channel-track" style="top:50%;transform:translateY(-50%);position:absolute;width:100%;">
+          <div class="channel-dots"></div>
+        </div>
+        <!-- Eve -->
+        <div class="eve-container" id="eveContainer" style="top:-40px;">
+          <div class="eve-icon" id="eveIcon">👁</div>
+          <div class="eve-bubble" id="eveBubble">Intercepting...</div>
+        </div>
+        <!-- Bit particles -->
+        <div class="bit-particle" id="bitParticle1" style="display:none;left:0%;">0</div>
+        <div class="bit-particle bit2" id="bitParticle2" style="display:none;left:0%;">0</div>
+      </div>
+      <div class="flex gap-8" style="align-items:center;">
+        <div class="text-muted">EVE:</div>
+        <div id="eveStatus" style="font-size:10px;color:var(--red);">MONITORING</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- RELAY NETWORK LAYOUT (Levels 5-7) -->
+<div id="relayLayout" class="relay-network" style="display:none;padding:24px;">
+  <div class="flex gap-8" style="align-items:center;margin-bottom:8px;">
+    <div style="font-family:'Syne',sans-serif;font-size:20px;font-weight:800;color:#fff;">RELAY NETWORK</div>
+    <div style="font-size:11px;color:var(--dim);">Execute teleportation hop by hop →</div>
+  </div>
+  <div id="relayTrack" class="relay-track"></div>
+  <div id="relayPrompt" class="prompt-box" style="max-width:600px;">Loading relay...</div>
+  <div id="relayControls" style="display:flex;gap:12px;flex-wrap:wrap;"></div>
+  <div class="noise-warning" id="noiseWarning">
+    ⚡ CHANNEL NOISE DETECTED — Some classical bits may have been flipped during transmission. Verify reconstructed state matches the original package before proceeding.
+  </div>
+  <div class="teaching-moment" id="relayTeachMoment" style="max-width:600px;">
+    ⚠ Each hop consumes one entangled pair. The quantum state is teleported hop by hop — each relay must execute the full protocol independently.
+  </div>
+</div>
+
+<!-- SUCCESS OVERLAY -->
+<div class="success-overlay" id="successOverlay">
+  <div class="success-box">
+    <div class="success-title" id="successTitle">MISSION COMPLETE</div>
+    <div class="success-desc" id="successDesc">The quantum state was successfully teleported.</div>
+    <div class="teaching-moment show" id="successLesson" style="text-align:left;margin-bottom:16px;"></div>
+    <div class="success-btns">
+      <button class="action-btn primary" style="width:140px;" onclick="nextLevel()">NEXT LEVEL →</button>
+      <button class="action-btn secondary" style="width:140px;" onclick="closeSuccess()">REVIEW</button>
+    </div>
+  </div>
+</div>
+
+<!-- LEVEL SELECT OVERLAY -->
+<div class="level-select-overlay" id="levelSelectOverlay">
+  <div style="background:var(--panel);border:1px solid var(--border);padding:32px;max-width:680px;width:90%;">
+    <div style="font-family:'Syne',sans-serif;font-size:22px;font-weight:800;margin-bottom:4px;">SELECT LEVEL</div>
+    <div style="font-size:11px;color:var(--dim);margin-bottom:24px;letter-spacing:1px;">OPERATION ENTANGLE — 7 LEVELS</div>
+    <div id="levelGrid" class="level-grid"></div>
+    <div style="margin-top:16px;display:flex;justify-content:flex-end;">
+      <button class="back-btn" onclick="hideLevelSelect()">CLOSE</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// GAME STATE
+// ============================================================
+const state = {
+  level: 1,
+  unlockedLevels: 7, // for demo, all unlocked
+  completedLevels: new Set(),
+  phase: 'gate_setup', // gate_setup | measured | transmitting | bob_correction | complete
+  bits: [0, 0],
+  selectedCorrection: null,
+  packageAngle: 45, // degrees — qubit state direction
+  noiseActive: false,
+  noisyBits: [0, 0],
+  gatesPlaced: [],
+  eveTimerActive: false,
+  eveTimer: null,
+};
+
+// Level config
+const LEVELS = [
+  {
+    num: 1, name: 'BASIC\nTRANSMIT', type: 'narrative',
+    mission: 'MISSION 01',
+    briefing: 'Intercept imminent. Transmit the classified package state to Bob using the quantum teleportation protocol. Apply gates in the correct order, then transmit.',
+    packageAngle: 30,
+    guided: true,
+    noisy: false,
+    eveTimer: false,
+    lesson: 'Eve intercepted the classical bits but learned NOTHING about the package. Without Bob\'s entangled qubit, the bits are meaningless.',
+  },
+  {
+    num: 2, name: 'RECALL\nPROTOCOL', type: 'narrative',
+    mission: 'MISSION 02',
+    briefing: 'Step-by-step guidance has been removed. Execute the teleportation protocol from memory.',
+    packageAngle: 135,
+    guided: false,
+    noisy: false,
+    eveTimer: false,
+    lesson: 'The 2 classical bits are REQUIRED. Bob cannot reconstruct the package without them — this is why teleportation cannot outrun light.',
+  },
+  {
+    num: 3, name: 'NOISY\nLINK', type: 'narrative',
+    mission: 'MISSION 03',
+    briefing: 'The entangled link is degraded. 20% chance of noise. Verify link integrity before transmitting.',
+    packageAngle: 60,
+    guided: false,
+    noisy: true,
+    eveTimer: false,
+    lesson: 'Channel noise can corrupt the entangled link. Real quantum systems use error correction to detect and fix this.',
+  },
+  {
+    num: 4, name: 'EVE\nINTERFERES', type: 'narrative',
+    mission: 'MISSION 04',
+    briefing: 'Eve is attempting active interference. Act fast — she will attempt a random correction if you delay. Verify Bob\'s state matches the package.',
+    packageAngle: 90,
+    guided: false,
+    noisy: false,
+    eveTimer: true,
+    eveDelay: 15000,
+    lesson: 'Eve can tamper with the classical channel, but cannot extract the quantum state from it. She can only corrupt — she cannot read the package.',
+  },
+  {
+    num: 5, name: 'TWO\nHOP RELAY', type: 'relay',
+    mission: 'RELAY 05',
+    briefing: 'Route the package through a two-hop relay. Execute the teleportation protocol at each node in sequence.',
+    packageAngle: 45,
+    guided: false,
+    noisy: false,
+    hops: 2,
+    lesson: 'Each hop consumed one entangled pair. The state was teleported twice — never copied.',
+  },
+  {
+    num: 6, name: 'RELAY\n+NOISE', type: 'relay',
+    mission: 'RELAY 06',
+    briefing: '15% chance of classical bit-flip at each hop. Detect inconsistencies by checking reconstructed states.',
+    packageAngle: 120,
+    guided: false,
+    noisy: true,
+    noiseChance: 0.15,
+    hops: 2,
+    lesson: 'Noise in the classical channel corrupts the correction step. Quantum error detection can identify these failures.',
+  },
+  {
+    num: 7, name: 'THREE\nHOP RELAY', type: 'relay',
+    mission: 'RELAY 07',
+    briefing: 'Three-hop relay with noise. The complete teleportation protocol must be executed at every node. One wrong correction corrupts the final state.',
+    packageAngle: 75,
+    guided: false,
+    noisy: true,
+    noiseChance: 0.1,
+    hops: 3,
+    lesson: 'Three hops, three entangled pairs, three full protocols. Quantum teleportation scales across arbitrary relay distances.',
+  },
+];
+
+// ============================================================
+// QUBIT DRAWING
+// ============================================================
+function drawQubitDial(canvas, angle, style = 'cyan', scrambled = false) {
+  const ctx = canvas.getContext('2d');
+  const w = canvas.width, h = canvas.height;
+  const cx = w/2, cy = h/2;
+  const r = Math.min(w,h)/2 - 6;
+
+  ctx.clearRect(0, 0, w, h);
+
+  const colors = {
+    cyan: '#00e5ff',
+    teal: '#00ffcc',
+    amber: '#f59e0b',
+    green: '#10b981',
+    red: '#ef4444',
+    dim: '#4a5568',
+  };
+  const col = colors[style] || colors.cyan;
+
+  // Background circle
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, 0, Math.PI*2);
+  ctx.strokeStyle = 'rgba(26,37,64,0.8)';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+
+  if (scrambled) {
+    // Draw noise pattern
+    ctx.strokeStyle = col;
+    ctx.lineWidth = 1;
+    for (let i = 0; i < 6; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const x1 = cx + Math.cos(a) * (r * 0.2);
+      const y1 = cy + Math.sin(a) * (r * 0.2);
+      const x2 = cx + Math.cos(a + Math.PI + Math.random()) * (r * 0.6);
+      const y2 = cy + Math.sin(a + Math.PI + Math.random()) * (r * 0.6);
+      ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
+    }
+    ctx.font = '9px Space Mono';
+    ctx.fillStyle = col;
+    ctx.textAlign = 'center';
+    ctx.fillText('???', cx, cy+3);
+    return;
+  }
+
+  // Glow
+  ctx.shadowColor = col;
+  ctx.shadowBlur = 8;
+
+  // Arrow
+  const rad = (angle - 90) * Math.PI / 180;
+  const ax = cx + Math.cos(rad) * (r * 0.72);
+  const ay = cy + Math.sin(rad) * (r * 0.72);
+
+  ctx.beginPath();
+  ctx.moveTo(cx, cy);
+  ctx.lineTo(ax, ay);
+  ctx.strokeStyle = col;
+  ctx.lineWidth = 2.5;
+  ctx.stroke();
+
+  // Arrowhead
+  const headLen = 8;
+  const angle1 = rad + 2.5;
+  const angle2 = rad - 2.5;
+  ctx.beginPath();
+  ctx.moveTo(ax, ay);
+  ctx.lineTo(ax - headLen * Math.cos(angle1), ay - headLen * Math.sin(angle1));
+  ctx.moveTo(ax, ay);
+  ctx.lineTo(ax - headLen * Math.cos(angle2), ay - headLen * Math.sin(angle2));
+  ctx.stroke();
+
+  // Center dot
+  ctx.beginPath();
+  ctx.arc(cx, cy, 3, 0, Math.PI * 2);
+  ctx.fillStyle = col;
+  ctx.fill();
+
+  ctx.shadowBlur = 0;
+}
+
+function drawDestroyedQubit(canvas) {
+  const ctx = canvas.getContext('2d');
+  const w = canvas.width, h = canvas.height;
+  const cx = w/2, cy = h/2;
+  const r = Math.min(w,h)/2 - 6;
+
+  ctx.clearRect(0, 0, w, h);
+
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, 0, Math.PI*2);
+  ctx.strokeStyle = 'rgba(239,68,68,0.3)';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+
+  ctx.strokeStyle = 'rgba(239,68,68,0.5)';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(cx-10, cy-10); ctx.lineTo(cx+10, cy+10);
+  ctx.moveTo(cx+10, cy-10); ctx.lineTo(cx-10, cy+10);
+  ctx.stroke();
+}
+
+// ============================================================
+// GAME LOGIC
+// ============================================================
+let placedGates = [];
+
+function getRequiredGates() {
+  return ['H', 'CNOT'];
+}
+
+// Generation counter — incremented on every setupLevel call so stale async callbacks abort
+let levelGen = 0;
+
+function setupLevel(levelNum) {
+  // Cancel any stale async work from previous level
+  levelGen++;
+  const myGen = levelGen;
+
+  // Clear Eve timer
+  if (state.eveTimer) { clearTimeout(state.eveTimer); state.eveTimer = null; }
+  state.eveTimerActive = false;
+
+  const lvl = LEVELS[levelNum - 1];
+  state.level = levelNum;
+  state.phase = 'gate_setup';
+  state.bits = [0, 0];
+  state.selectedCorrection = null;
+  state.packageAngle = lvl.packageAngle;
+  placedGates = [];
+
+  document.getElementById('missionTag').textContent = lvl.mission;
+  document.getElementById('missionText').textContent = lvl.briefing;
+
+  updateLevelDots();
+
+  if (lvl.type === 'relay') {
+    document.getElementById('narrativeLayout').style.display = 'none';
+    document.getElementById('relayLayout').style.display = 'flex';
+    setupRelayLevel(lvl);
+  } else {
+    document.getElementById('narrativeLayout').style.display = 'block';
+    document.getElementById('relayLayout').style.display = 'none';
+    setupNarrativeLevel(lvl, myGen);
+  }
+}
+
+function setupNarrativeLevel(lvl, myGen) {
+  // Reset UI
+  document.getElementById('packageStateText').textContent = `|ψ⟩ θ=${lvl.packageAngle}°`;
+  document.getElementById('aliceStateText').textContent = '|0⟩';
+  document.getElementById('bobStateText').textContent = '|?⟩';
+  document.getElementById('aliceStatus').textContent = 'READY';
+  document.getElementById('bobStatus').textContent = 'STANDING BY';
+  document.getElementById('bitDisplayRow').style.display = 'none';
+  document.getElementById('correctionSection').style.display = 'none';
+  document.getElementById('ftlMoment').classList.remove('show');
+  document.getElementById('noCloningMoment').classList.remove('show');
+  document.getElementById('noCloneBadge').classList.remove('show');
+  document.getElementById('gatePanel').style.display = 'block';
+
+  // Set prompt
+  if (lvl.guided) {
+    document.getElementById('promptBox').textContent = '▶ STEP 1: Apply the H gate to the package qubit, then CNOT(package → Alice). Drag gates in order.';
+  } else {
+    document.getElementById('promptBox').textContent = '▶ Apply the correct gate sequence to the package qubit. Execute the teleportation protocol.';
+  }
+
+  document.getElementById('bobPromptBox').textContent = 'Awaiting classical bits from Alice...';
+
+  // Bit display
+  document.getElementById('bit1Box').textContent = '?';
+  document.getElementById('bit2Box').textContent = '?';
+  document.getElementById('bit1Box').className = 'bit-box';
+  document.getElementById('bit2Box').className = 'bit-box';
+  document.getElementById('bobBit1').textContent = '?';
+  document.getElementById('bobBit2').textContent = '?';
+  document.getElementById('bobBit1').className = 'bit-box';
+  document.getElementById('bobBit2').className = 'bit-box';
+
+  // Clear gate slots
+  document.getElementById('slot0').className = 'gate-slot';
+  document.getElementById('slot0').innerHTML = '<span class="text-muted">①</span>';
+  document.getElementById('slot1').className = 'gate-slot';
+  document.getElementById('slot1').innerHTML = '<span class="text-muted">②</span>';
+  document.getElementById('entangleMeasureBtn').disabled = true;
+  document.getElementById('sendBitsBtn').disabled = true;
+
+  // Correction buttons
+  ['00','01','10','11'].forEach(c => {
+    document.getElementById('corr'+c).classList.remove('selected');
+    document.getElementById('corr'+c).disabled = true;
+  });
+  document.getElementById('reconstructBtn').disabled = true;
+
+  // Eve bubble
+  document.getElementById('eveBubble').classList.remove('visible');
+  document.getElementById('eveIcon').classList.remove('active');
+  document.getElementById('eveStatus').textContent = 'MONITORING';
+
+  // Entangle line
+  const eline = document.getElementById('entangleLine');
+  if (lvl.noisy) {
+    eline.classList.add('noisy');
+  } else {
+    eline.classList.remove('noisy');
+  }
+
+  // Noise check for L3
+  if (lvl.noisy && Math.random() < 0.2) {
+    state.noiseActive = true;
+  } else {
+    state.noiseActive = false;
+  }
+
+  // Available gates
+  setupAvailableGates();
+
+  // Draw qubits
+  drawQubitDial(document.getElementById('packageDial'), lvl.packageAngle, 'amber');
+  drawQubitDial(document.getElementById('packageQubit'), lvl.packageAngle, 'amber');
+  drawQubitDial(document.getElementById('aliceQubit'), 0, 'cyan');
+  drawQubitDial(document.getElementById('bobQubit'), 0, 'teal', true);
+
+  // Correction tiles highlight
+  document.getElementById('packageTile').className = 'qubit-tile active';
+  document.getElementById('aliceTile').className = 'qubit-tile entangled';
+  document.getElementById('bobTile').className = 'qubit-tile';
+
+  // Eve timer for level 4
+  if (lvl.eveTimer) {
+    state.eveTimerActive = true;
+    state.eveTimer = setTimeout(() => {
+      if (levelGen === myGen) eveInterfere();
+    }, lvl.eveDelay);
+  } else {
+    state.eveTimerActive = false;
+  }
+
+  // Step indicators
+  setStepProgress(0);
+}
+
+function setupAvailableGates() {
+  const container = document.getElementById('availableGates');
+  container.innerHTML = '';
+  const gates = ['H', 'CNOT', 'X', 'Z'];
+  gates.forEach(g => {
+    const btn = document.createElement('button');
+    btn.className = 'gate-btn';
+    btn.textContent = g;
+    if (g === 'H') btn.title = 'Hadamard — creates superposition';
+    if (g === 'CNOT') btn.title = 'Controlled-NOT — entangles two qubits';
+    if (g === 'X') btn.title = 'Pauli-X — bit flip (NOT gate)';
+    if (g === 'Z') btn.title = 'Pauli-Z — phase flip';
+    btn.onclick = () => placeGate(g);
+    container.appendChild(btn);
+  });
+}
+
+function placeGate(gate) {
+  // Only allow during gate_setup phase
+  if (state.phase !== 'gate_setup') return;
+  if (placedGates.length >= 2) return;
+
+  const required = getRequiredGates();
+  const idx = placedGates.length;
+
+  if (gate !== required[idx]) {
+    // Wrong gate
+    const slot = document.getElementById('slot' + idx);
+    slot.className = 'gate-slot wrong';
+    slot.textContent = gate + ' ✗';
+    setTimeout(() => {
+      slot.className = 'gate-slot';
+      slot.innerHTML = `<span class="text-muted">${idx === 0 ? '①' : '②'}</span>`;
+    }, 800);
+
+    document.getElementById('promptBox').className = 'prompt-box error';
+    document.getElementById('promptBox').textContent = `✗ Wrong gate! ${gate} is not the right choice here. Remember: ${idx === 0 ? 'H goes first (creates superposition)' : 'CNOT creates the entanglement'}.`;
+    setTimeout(() => {
+      document.getElementById('promptBox').className = 'prompt-box';
+      setPromptForLevel();
+    }, 2000);
+    return;
+  }
+
+  placedGates.push(gate);
+  const slot = document.getElementById('slot' + idx);
+  slot.className = 'gate-slot filled';
+  slot.textContent = gate;
+
+  if (placedGates.length === 2) {
+    document.getElementById('entangleMeasureBtn').disabled = false;
+    document.getElementById('promptBox').className = 'prompt-box';
+    document.getElementById('promptBox').textContent = '✓ Gate sequence ready. Press ENTANGLE & MEASURE to execute.';
+    setStepProgress(1);
+  } else {
+    setPromptForLevel(1);
+  }
+}
+
+function setPromptForLevel(step = 0) {
+  const lvl = LEVELS[state.level - 1];
+  const prompts = [
+    '▶ STEP 1: Apply H gate (Hadamard) to create superposition.',
+    '▶ STEP 2: Apply CNOT gate to entangle package with Alice\'s qubit.',
+    '▶ STEP 3: Press ENTANGLE & MEASURE.',
+  ];
+  if (lvl.guided && step < prompts.length) {
+    document.getElementById('promptBox').textContent = prompts[step];
+  }
+}
+
+function removeGate(idx) {
+  if (state.phase !== 'gate_setup') return;
+  if (placedGates.length <= idx) return;
+  placedGates = placedGates.slice(0, idx);
+  for (let i = idx; i < 2; i++) {
+    document.getElementById('slot' + i).className = 'gate-slot';
+    document.getElementById('slot' + i).innerHTML = `<span class="text-muted">${i === 0 ? '①' : '②'}</span>`;
+  }
+  document.getElementById('entangleMeasureBtn').disabled = true;
+}
+
+function executeMeasure() {
+  // Guard: only allow during gate_setup phase
+  if (state.phase !== 'gate_setup') return;
+  const lvl = LEVELS[state.level - 1];
+
+  // Check noise
+  if (lvl.noisy && state.noiseActive) {
+    // Temporarily lock the button during recovery
+    document.getElementById('entangleMeasureBtn').disabled = true;
+    document.getElementById('promptBox').className = 'prompt-box error';
+    document.getElementById('promptBox').textContent = '⚡ LINK INTEGRITY FAILURE — The entangled link is corrupted. Re-establishing... (In a real system, you would abort and request a fresh entangled pair.)';
+    document.getElementById('entangleLine').style.background = 'linear-gradient(90deg, var(--red), rgba(239,68,68,0.2), var(--red))';
+    setTimeout(() => {
+      state.noiseActive = false;
+      document.getElementById('entangleLine').style.background = '';
+      document.getElementById('promptBox').className = 'prompt-box';
+      document.getElementById('promptBox').textContent = '▶ Link re-established. Proceed with measurement.';
+      document.getElementById('entangleMeasureBtn').disabled = false;
+    }, 2500);
+    return;
+  }
+
+  // Compute measurement bits based on package angle
+  const angle = lvl.packageAngle;
+  // Map angle to two classical bits (simplified — deterministic for gameplay clarity)
+  const b1 = (angle >= 90 && angle < 270) ? 1 : 0;
+  const b2 = (angle >= 45 && angle < 135) || (angle >= 225 && angle < 315) ? 1 : 0;
+  state.bits = [b1, b2];
+
+  // Update Alice UI
+  document.getElementById('packageTile').classList.add('measured');
+  document.getElementById('aliceStateText').textContent = `|${b1}⟩ MEAS`;
+  document.getElementById('packageStateText').textContent = 'MEASURED';
+  drawQubitDial(document.getElementById('aliceQubit'), b1 ? 180 : 0, 'amber');
+
+  // Show destroyed state
+  setTimeout(() => {
+    drawDestroyedQubit(document.getElementById('packageQubit'));
+    document.getElementById('packageStateText').textContent = 'DESTROYED';
+    document.getElementById('noCloneBadge').classList.add('show');
+  }, 400);
+
+  // Show bits
+  document.getElementById('bit1Box').textContent = b1;
+  document.getElementById('bit1Box').className = `bit-box set-${b1}`;
+  document.getElementById('bit2Box').textContent = b2;
+  document.getElementById('bit2Box').className = `bit-box set-${b2}`;
+  document.getElementById('bitDisplayRow').style.display = 'flex';
+  document.getElementById('sendBitsBtn').disabled = false;
+  document.getElementById('gatePanel').querySelector('.action-btn').disabled = true;
+
+  document.getElementById('promptBox').className = 'prompt-box';
+  document.getElementById('promptBox').textContent = `✓ Measurement complete. Bits: ${b1}${b2}. Transmit to Bob via classical channel.`;
+
+  setStepProgress(2);
+  state.phase = 'measured';
+}
+
+function sendBits() {
+  // Guard: only allow if we've measured and not yet transmitting
+  if (state.phase !== 'measured') return;
+  state.phase = 'transmitting';
+  const myGen = levelGen;
+
+  const [b1, b2] = state.bits;
+
+  // Hide send button
+  document.getElementById('sendBitsBtn').disabled = true;
+  document.getElementById('promptBox').textContent = '⟶ Transmitting classical bits...';
+
+  // Show bit particles
+  const p1 = document.getElementById('bitParticle1');
+  const p2 = document.getElementById('bitParticle2');
+  p1.textContent = b1;
+  p2.textContent = b2;
+  p1.style.display = 'flex';
+  p2.style.display = 'flex';
+  p1.style.left = '0%';
+  p2.style.left = '0%';
+
+  setTimeout(() => {
+    p1.classList.add('bit-travelling');
+    p2.classList.add('bit-travelling');
+  }, 50);
+
+  // Eve activates midway
+  setTimeout(() => {
+    if (levelGen !== myGen) return;
+    const eveIcon = document.getElementById('eveIcon');
+    eveIcon.classList.add('active');
+    const eveBubble = document.getElementById('eveBubble');
+    eveBubble.textContent = `I received: ${b1}${b2}. But I don't know what the package was.`;
+    eveBubble.classList.add('visible');
+    document.getElementById('eveStatus').textContent = 'INTERCEPTED (LEARNED NOTHING)';
+  }, 900);
+
+  setTimeout(() => {
+    if (levelGen !== myGen) return; // Level changed mid-animation — abort
+
+    p1.style.display = 'none';
+    p2.style.display = 'none';
+    p1.classList.remove('bit-travelling');
+    p2.classList.remove('bit-travelling');
+
+    // Level 4 — Eve timer cancellation
+    if (state.eveTimerActive) {
+      clearTimeout(state.eveTimer);
+      state.eveTimer = null;
+      state.eveTimerActive = false;
+    }
+
+    // Bob receives bits
+    document.getElementById('bobBit1').textContent = b1;
+    document.getElementById('bobBit1').className = `bit-box set-${b1}`;
+    document.getElementById('bobBit2').textContent = b2;
+    document.getElementById('bobBit2').className = `bit-box set-${b2}`;
+
+    document.getElementById('ftlMoment').classList.add('show');
+
+    document.getElementById('bobStatus').textContent = 'BITS RECEIVED';
+    document.getElementById('bobPromptBox').style.background = 'rgba(0,255,204,0.05)';
+    document.getElementById('bobPromptBox').textContent = `Received bits: ${b1}${b2}. Select the matching correction to reconstruct the package.`;
+
+    document.getElementById('correctionSection').style.display = 'block';
+    ['00','01','10','11'].forEach(c => {
+      document.getElementById('corr'+c).disabled = false;
+    });
+
+    setStepProgress(3);
+    state.phase = 'bob_correction';
+  }, 2000);
+}
+
+function selectCorrection(bits) {
+  if (state.phase !== 'bob_correction') return;
+  state.selectedCorrection = bits;
+  ['00','01','10','11'].forEach(c => {
+    document.getElementById('corr'+c).classList.toggle('selected', c === bits);
+  });
+  document.getElementById('reconstructBtn').disabled = false;
+}
+
+function reconstruct() {
+  // Guard: only allow during bob_correction phase
+  if (state.phase !== 'bob_correction') return;
+  if (!state.selectedCorrection) return;
+
+  const [b1, b2] = state.bits;
+  const correct = `${b1}${b2}`;
+  const chosen = state.selectedCorrection;
+  const lvl = LEVELS[state.level - 1]; // always fetch lvl here, not inside one branch
+
+  // Lock UI immediately to prevent double-clicks
+  state.phase = 'reconstructing';
+  document.getElementById('reconstructBtn').disabled = true;
+  ['00','01','10','11'].forEach(c => {
+    document.getElementById('corr'+c).disabled = true;
+  });
+
+  if (chosen === correct) {
+    // SUCCESS
+    setTimeout(() => {
+      document.getElementById('bobTile').classList.add('success');
+      document.getElementById('bobTile').classList.add('qubit-reconstructed');
+      drawQubitDial(document.getElementById('bobQubit'), lvl.packageAngle, 'green');
+      document.getElementById('bobStateText').textContent = `|ψ⟩ RECONSTRUCTED`;
+      document.getElementById('bobStatus').textContent = '✓ STATE RESTORED';
+      document.getElementById('bobPromptBox').className = 'prompt-box success';
+      document.getElementById('bobPromptBox').textContent = `✓ Package state successfully reconstructed! Bob's qubit now matches Alice's original package.`;
+      document.getElementById('noCloningMoment').classList.add('show');
+      setStepProgress(4);
+      setTimeout(() => showSuccess(lvl), 1200);
+    }, 300);
+  } else {
+    // WRONG CORRECTION — show error, then allow retry
+    document.getElementById('bobPromptBox').className = 'prompt-box error';
+    document.getElementById('bobPromptBox').textContent = `✗ Wrong correction! You selected "${chosen}" but the bits were "${correct}". The correction must match the received bits exactly.`;
+    // Corrupt Bob's qubit visually
+    drawQubitDial(document.getElementById('bobQubit'), (lvl.packageAngle + 90) % 360, 'red', false);
+    document.getElementById('bobStateText').textContent = 'CORRUPTED';
+
+    // Re-enable after delay for retry
+    setTimeout(() => {
+      // Only retry if we haven't switched level/phase in the meantime
+      if (state.phase !== 'reconstructing') return;
+      state.phase = 'bob_correction';
+      state.selectedCorrection = null;
+      document.getElementById('bobPromptBox').className = 'prompt-box';
+      document.getElementById('bobPromptBox').textContent = `Received bits: ${b1}${b2}. Select the matching correction to reconstruct.`;
+      ['00','01','10','11'].forEach(c => {
+        document.getElementById('corr'+c).disabled = false;
+        document.getElementById('corr'+c).classList.remove('selected');
+      });
+      document.getElementById('reconstructBtn').disabled = true;
+      drawQubitDial(document.getElementById('bobQubit'), 0, 'teal', true);
+    }, 2000);
+  }
+}
+
+function eveInterfere() {
+  // Only interfere if Bob is actually waiting to select a correction
+  if (state.phase !== 'bob_correction') return;
+
+  // Level 4: Eve messes with Bob's correction
+  document.getElementById('eveIcon').classList.add('active');
+  const eveBubble = document.getElementById('eveBubble');
+  eveBubble.textContent = `INTERFERENCE: I'm submitting a random correction to confuse Bob!`;
+  eveBubble.classList.add('visible');
+  eveBubble.style.borderColor = 'var(--red)';
+  eveBubble.style.color = 'var(--red)';
+
+  // Auto-select wrong correction
+  const [b1, b2] = state.bits;
+  const correct = `${b1}${b2}`;
+  const wrong = ['00','01','10','11'].filter(c => c !== correct);
+  const eveChoice = wrong[Math.floor(Math.random() * wrong.length)];
+
+  // Clear any prior selection first
+  ['00','01','10','11'].forEach(c => document.getElementById('corr'+c).classList.remove('selected'));
+  document.getElementById('corr' + eveChoice).classList.add('selected');
+  state.selectedCorrection = eveChoice;
+  document.getElementById('reconstructBtn').disabled = false;
+  document.getElementById('bobPromptBox').className = 'prompt-box error';
+  document.getElementById('bobPromptBox').textContent = `⚡ EVE INTERFERENCE DETECTED! She submitted correction "${eveChoice}" — check the received bits carefully. Is this really correct?`;
+}
+
+function setStepProgress(step) {
+  for (let i = 0; i < 3; i++) {
+    const pip = document.getElementById(`step${i+1}pip`);
+    if (i < step) pip.className = 'step-pip done';
+    else if (i === step) pip.className = 'step-pip active';
+    else pip.className = 'step-pip';
+  }
+}
+
+// ============================================================
+// RELAY LEVELS
+// ============================================================
+let relayState = {};
+
+function setupRelayLevel(lvl) {
+  const hops = lvl.hops || 2;
+  const nodes = hops + 2; // Source + relays + Destination
+
+  relayState = {
+    hops,
+    currentHop: 0,
+    angles: [lvl.packageAngle],
+    completed: [],
+    bits: [],
+    noisy: lvl.noisy,
+    noiseChance: lvl.noiseChance || 0,
+  };
+
+  const track = document.getElementById('relayTrack');
+  track.innerHTML = '';
+
+  const nodeNames = ['SOURCE'];
+  for (let i = 0; i < hops; i++) nodeNames.push(`RELAY ${i+1}`);
+  nodeNames.push('DEST');
+
+  for (let i = 0; i < nodes; i++) {
+    if (i > 0) {
+      const link = document.createElement('div');
+      link.className = 'relay-link';
+      link.id = `relayLink${i-1}`;
+      const pulse = document.createElement('div');
+      pulse.className = 'relay-link-pulse';
+      link.appendChild(pulse);
+      track.appendChild(link);
+    }
+
+    const node = document.createElement('div');
+    node.className = 'relay-node';
+    node.id = `relayNode${i}`;
+
+    const box = document.createElement('div');
+    box.className = 'relay-node-box' + (i === 0 ? ' active' : '');
+    box.id = `relayBox${i}`;
+
+    const cvs = document.createElement('canvas');
+    cvs.id = `relayCanvas${i}`;
+    cvs.width = 50; cvs.height = 50;
+    box.appendChild(cvs);
+
+    const lbl = document.createElement('div');
+    lbl.className = 'qubit-state-text';
+    lbl.id = `relayState${i}`;
+    lbl.style.fontSize = '9px';
+    lbl.textContent = i === 0 ? `|ψ⟩` : '|?⟩';
+    box.appendChild(lbl);
+
+    const nlbl = document.createElement('div');
+    nlbl.className = 'relay-node-label';
+    nlbl.textContent = nodeNames[i];
+    node.appendChild(box);
+    node.appendChild(nlbl);
+    track.appendChild(node);
+  }
+
+  // Draw source
+  drawQubitDial(document.getElementById('relayCanvas0'), lvl.packageAngle, 'amber');
+
+  // Teaching moment
+  document.getElementById('relayTeachMoment').classList.add('show');
+  if (lvl.noisy) {
+    document.getElementById('noiseWarning').classList.add('show');
+  } else {
+    document.getElementById('noiseWarning').classList.remove('show');
+  }
+
+  document.getElementById('relayPrompt').textContent = `▶ HOP ${relayState.currentHop + 1}/${hops}: Execute the teleportation protocol from Node ${relayState.currentHop} to Node ${relayState.currentHop + 1}. Apply H, then CNOT, then measure.`;
+
+  buildRelayControls();
+}
+
+function buildRelayControls() {
+  const container = document.getElementById('relayControls');
+  container.innerHTML = '';
+
+  const btn = (label, id, fn, style='primary') => {
+    const b = document.createElement('button');
+    b.className = `action-btn ${style}`;
+    b.style.width = 'auto';
+    b.style.padding = '10px 20px';
+    b.id = id;
+    b.textContent = label;
+    b.onclick = fn;
+    container.appendChild(b);
+  };
+
+  btn('⚡ H + CNOT + MEASURE', 'relayMeasBtn', relayMeasure);
+  btn('→ TRANSMIT BITS', 'relayTransBtn', relayTransmit, 'secondary');
+  document.getElementById('relayTransBtn').disabled = true;
+
+  const corrDiv = document.createElement('div');
+  corrDiv.style.display = 'flex';
+  corrDiv.style.gap = '6px';
+  ['00','01','10','11'].forEach(c => {
+    const cb = document.createElement('button');
+    cb.className = 'correction-btn';
+    cb.id = `relayCor${c}`;
+    cb.style.minWidth = '70px';
+    cb.innerHTML = `<div style="font-size:12px;font-weight:700;">${c}</div>`;
+    cb.disabled = true;
+    cb.onclick = () => relaySelectCorrection(c);
+    corrDiv.appendChild(cb);
+  });
+  container.appendChild(corrDiv);
+
+  btn('↺ APPLY CORRECTION', 'relayApplyBtn', relayApplyCorrection, 'secondary');
+  document.getElementById('relayApplyBtn').disabled = true;
+}
+
+let relayMeasBits = [0, 0];
+let relaySelectedCorr = null;
+
+function relayMeasure() {
+  const measBtn = document.getElementById('relayMeasBtn');
+  if (measBtn && measBtn.disabled) return;
+
+  const hop = relayState.currentHop;
+  const angle = relayState.angles[hop];
+  if (angle === undefined) return; // safety check
+
+  const b1 = (angle >= 90 && angle < 270) ? 1 : 0;
+  const b2 = ((angle >= 45 && angle < 135) || (angle >= 225 && angle < 315)) ? 1 : 0;
+
+  // Apply noise
+  let nb1 = b1, nb2 = b2;
+  if (relayState.noisy) {
+    if (Math.random() < relayState.noiseChance) nb1 = 1 - nb1;
+    if (Math.random() < relayState.noiseChance) nb2 = 1 - nb2;
+  }
+
+  relayMeasBits = [nb1, nb2];
+  relayState.bits.push([b1, b2]);
+
+  if (measBtn) measBtn.disabled = true;
+  const transBtn = document.getElementById('relayTransBtn');
+  if (transBtn) transBtn.disabled = false;
+
+  const noiseNote = (nb1 !== b1 || nb2 !== b2) ? ` (⚡ NOISY — received as ${nb1}${nb2})` : '';
+  document.getElementById('relayPrompt').textContent = `Measured: ${b1}${b2}${noiseNote}. Transmit classical bits to next node.`;
+
+  const canvas = document.getElementById(`relayCanvas${hop}`);
+  if (canvas) canvas.style.opacity = '0.5';
+  const stateEl = document.getElementById(`relayState${hop}`);
+  if (stateEl) stateEl.textContent = `MEAS ${b1}${b2}`;
+}
+
+function relayTransmit() {
+  const transBtn = document.getElementById('relayTransBtn');
+  if (transBtn && transBtn.disabled) return;
+  if (transBtn) transBtn.disabled = true;
+
+  const [b1, b2] = relayMeasBits;
+  document.getElementById('relayPrompt').textContent = `Bits ${b1}${b2} transmitted. Select correction for next node.`;
+
+  ['00','01','10','11'].forEach(c => {
+    const el = document.getElementById(`relayCor${c}`);
+    if (el) el.disabled = false;
+  });
+}
+
+function relaySelectCorrection(bits) {
+  relaySelectedCorr = bits;
+  ['00','01','10','11'].forEach(c => {
+    const el = document.getElementById(`relayCor${c}`);
+    if (el) el.classList.toggle('selected', c === bits);
+  });
+  const applyBtn = document.getElementById('relayApplyBtn');
+  if (applyBtn) applyBtn.disabled = false;
+}
+
+function relayApplyCorrection() {
+  if (!relaySelectedCorr) return; // nothing selected yet
+
+  const hop = relayState.currentHop;
+  const [b1, b2] = relayMeasBits;
+  const correct = `${b1}${b2}`;
+  const chosen = relaySelectedCorr;
+
+  // Lock buttons immediately
+  document.getElementById('relayApplyBtn').disabled = true;
+  ['00','01','10','11'].forEach(c => {
+    document.getElementById(`relayCor${c}`).disabled = true;
+  });
+
+  if (chosen !== correct) {
+    document.getElementById('relayPrompt').textContent = `✗ Wrong correction "${chosen}" — received bits were "${correct}". The state at node ${hop+1} is corrupted. Try again.`;
+    const nextBox = document.getElementById(`relayBox${hop+1}`);
+    if (nextBox) nextBox.style.borderColor = 'var(--red)';
+    const nextCanvas = document.getElementById(`relayCanvas${hop+1}`);
+    if (nextCanvas) drawQubitDial(nextCanvas, 0, 'red', false);
+    const nextState = document.getElementById(`relayState${hop+1}`);
+    if (nextState) nextState.textContent = 'CORRUPTED';
+
+    // Re-enable for retry after delay
+    const savedGen = levelGen;
+    setTimeout(() => {
+      if (levelGen !== savedGen) return;
+      document.getElementById('relayPrompt').textContent = `Re-select correct correction for received bits ${b1}${b2}.`;
+      ['00','01','10','11'].forEach(c => {
+        const el = document.getElementById(`relayCor${c}`);
+        if (el) { el.classList.remove('selected'); el.disabled = false; }
+      });
+      document.getElementById('relayApplyBtn').disabled = true;
+      relaySelectedCorr = null;
+      if (nextBox) nextBox.style.borderColor = '';
+      if (nextCanvas) drawQubitDial(nextCanvas, 0, 'teal', true);
+    }, 1500);
+    return;
+  }
+
+  // Correct
+  const lvl = LEVELS[state.level - 1];
+  const nextAngle = lvl.packageAngle;
+  relayState.angles.push(nextAngle);
+  relayState.completed.push(hop);
+
+  const nextBox = document.getElementById(`relayBox${hop+1}`);
+  const nextCanvas = document.getElementById(`relayCanvas${hop+1}`);
+  const nextStateEl = document.getElementById(`relayState${hop+1}`);
+  if (nextBox) nextBox.style.borderColor = 'var(--green)';
+  if (nextCanvas) drawQubitDial(nextCanvas, nextAngle, 'green');
+  if (nextStateEl) nextStateEl.textContent = `|ψ⟩ ✓`;
+
+  relayState.currentHop++;
+  relaySelectedCorr = null;
+
+  if (relayState.currentHop >= relayState.hops) {
+    // All hops done
+    setTimeout(() => showSuccess(lvl), 800);
+  } else {
+    // Advance to next hop
+    const savedGen = levelGen;
+    setTimeout(() => {
+      if (levelGen !== savedGen) return;
+      document.getElementById('relayPrompt').textContent = `✓ Hop ${relayState.currentHop} complete. ▶ HOP ${relayState.currentHop + 1}/${relayState.hops}: Execute protocol to next node.`;
+      const activeBox = document.getElementById(`relayBox${relayState.currentHop}`);
+      if (activeBox) activeBox.classList.add('active');
+      ['00','01','10','11'].forEach(c => {
+        const el = document.getElementById(`relayCor${c}`);
+        if (el) { el.disabled = true; el.classList.remove('selected'); }
+      });
+      document.getElementById('relayApplyBtn').disabled = true;
+      document.getElementById('relayMeasBtn').disabled = false;
+    }, 600);
+  }
+}
+
+// ============================================================
+// SUCCESS / LEVEL SELECT
+// ============================================================
+function showSuccess(lvl) {
+  state.completedLevels.add(state.level);
+  document.getElementById('successTitle').textContent = lvl.type === 'relay' ? 'RELAY COMPLETE' : 'MISSION COMPLETE';
+  document.getElementById('successDesc').textContent = `Level ${state.level} completed. The quantum state was successfully teleported.`;
+  document.getElementById('successLesson').textContent = '⚠ ' + lvl.lesson;
+  document.getElementById('successOverlay').classList.add('show');
+  updateLevelDots();
+}
+
+function closeSuccess() {
+  document.getElementById('successOverlay').classList.remove('show');
+}
+
+function nextLevel() {
+  closeSuccess();
+  const next = state.level + 1;
+  if (next <= 7) {
+    setupLevel(next);
+  } else {
+    // All 7 levels complete
+    document.getElementById('successTitle').textContent = 'ALL MISSIONS COMPLETE';
+    document.getElementById('successDesc').textContent = 'You have completed all 7 levels of Operation Entangle. Quantum teleportation mastered.';
+    document.getElementById('successLesson').textContent = '⚠ KEY INSIGHT: Quantum teleportation transmits quantum states using a shared entangled pair + 2 classical bits. It cannot exceed the speed of light — the classical bits are always required.';
+    document.getElementById('successOverlay').classList.add('show');
+    // Hide "Next Level" button
+    document.querySelector('.success-btns .action-btn.primary').textContent = 'REPLAY →';
+    document.querySelector('.success-btns .action-btn.primary').onclick = () => { closeSuccess(); setupLevel(1); };
+  }
+}
+
+function showLevelSelect() {
+  const grid = document.getElementById('levelGrid');
+  grid.innerHTML = '';
+  LEVELS.forEach(lvl => {
+    const card = document.createElement('div');
+    card.className = 'level-card' + (state.completedLevels.has(lvl.num) ? ' done' : '');
+    card.innerHTML = `<div class="level-num">${lvl.num.toString().padStart(2,'0')}</div><div class="level-name">${lvl.name}</div>`;
+    card.onclick = () => { hideLevelSelect(); setupLevel(lvl.num); };
+    grid.appendChild(card);
+  });
+  document.getElementById('levelSelectOverlay').classList.add('show');
+}
+
+function hideLevelSelect() {
+  document.getElementById('levelSelectOverlay').classList.remove('show');
+}
+
+function goBackToLab() {
+  window.history.back();
+}
+
+function updateLevelDots() {
+  const container = document.getElementById('levelDots');
+  container.innerHTML = '';
+  LEVELS.forEach(lvl => {
+    const dot = document.createElement('div');
+    dot.className = 'level-dot' + (state.completedLevels.has(lvl.num) ? ' done' : '') + (state.level === lvl.num ? ' active' : '');
+    dot.title = `Level ${lvl.num}: ${lvl.name}`;
+    dot.onclick = () => setupLevel(lvl.num);
+    container.appendChild(dot);
+  });
+}
+
+// ============================================================
+// INIT
+// ============================================================
+setupLevel(1);
+</script>
+</body>
+</html>
