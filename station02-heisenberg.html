@@ -1,0 +1,1430 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Station 02 — Heisenberg's Dilemma | Quantum Research Lab</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #04060d;
+    --panel: #0f1628;
+    --panel2: #111c35;
+    --border: #1a2540;
+    --cyan: #00e5ff;
+    --cyan-dim: rgba(0,229,255,0.15);
+    --cyan-glow: rgba(0,229,255,0.4);
+    --amber: #f59e0b;
+    --amber-dim: rgba(245,158,11,0.15);
+    --amber-glow: rgba(245,158,11,0.4);
+    --green: #10b981;
+    --green-dim: rgba(16,185,129,0.2);
+    --red: #ef4444;
+    --text: #c8d8f0;
+    --text-dim: #5a7099;
+    --text-bright: #e8f0ff;
+  }
+
+  html, body {
+    height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Space Mono', monospace;
+    overflow-x: hidden;
+  }
+
+  /* ── SCREEN SYSTEM ── */
+  .screen { display: none; min-height: 100vh; flex-direction: column; }
+  .screen.active { display: flex; }
+
+  /* ── SCANLINE OVERLAY ── */
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.03) 2px, rgba(0,0,0,0.03) 4px);
+    pointer-events: none; z-index: 9999;
+  }
+
+  /* ══════════════════════════════════════
+     LEVEL SELECT SCREEN
+  ══════════════════════════════════════ */
+  #screen-select {
+    align-items: center;
+    justify-content: center;
+    padding: 40px 20px;
+    background: radial-gradient(ellipse at 50% 0%, rgba(0,229,255,0.06) 0%, transparent 60%);
+  }
+
+  .select-header {
+    text-align: center;
+    margin-bottom: 48px;
+  }
+  .station-label {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 4px;
+    color: var(--cyan);
+    text-transform: uppercase;
+    margin-bottom: 12px;
+    opacity: 0.8;
+  }
+  .select-title {
+    font-family: 'Syne', sans-serif;
+    font-size: clamp(28px, 5vw, 48px);
+    font-weight: 800;
+    color: var(--text-bright);
+    line-height: 1.1;
+    margin-bottom: 14px;
+  }
+  .select-subtitle {
+    font-size: 12px;
+    color: var(--text-dim);
+    line-height: 1.8;
+    max-width: 520px;
+    margin: 0 auto;
+  }
+
+  .levels-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+    width: 100%;
+    max-width: 1000px;
+    margin-bottom: 40px;
+  }
+
+  .level-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 24px 20px;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+    overflow: hidden;
+  }
+  .level-card::before {
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0; height: 2px;
+    background: var(--cyan);
+    transform: scaleX(0);
+    transition: transform 0.2s;
+    transform-origin: left;
+  }
+  .level-card:hover { border-color: var(--cyan); transform: translateY(-2px); }
+  .level-card:hover::before { transform: scaleX(1); }
+  .level-card.locked { opacity: 0.4; cursor: not-allowed; pointer-events: none; }
+  .level-card.completed::before { transform: scaleX(1); background: var(--green); }
+  .level-card.completed { border-color: rgba(16,185,129,0.4); }
+
+  .level-num {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 3px;
+    color: var(--cyan);
+    margin-bottom: 8px;
+  }
+  .level-card.completed .level-num { color: var(--green); }
+  .level-name {
+    font-family: 'Syne', sans-serif;
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text-bright);
+    margin-bottom: 8px;
+  }
+  .level-desc {
+    font-size: 10px;
+    color: var(--text-dim);
+    line-height: 1.7;
+  }
+  .level-badge {
+    position: absolute; top: 16px; right: 16px;
+    font-size: 9px; letter-spacing: 1px;
+    padding: 3px 8px; border-radius: 3px;
+    font-family: 'Space Mono', monospace;
+  }
+  .badge-easy { background: var(--green-dim); color: var(--green); border: 1px solid rgba(16,185,129,0.3); }
+  .badge-med { background: var(--amber-dim); color: var(--amber); border: 1px solid rgba(245,158,11,0.3); }
+  .badge-hard { background: rgba(239,68,68,0.15); color: var(--red); border: 1px solid rgba(239,68,68,0.3); }
+  .badge-done { background: var(--green-dim); color: var(--green); border: 1px solid rgba(16,185,129,0.3); }
+  .lock-icon { font-size: 18px; margin-bottom: 8px; }
+
+  .back-lab-btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-family: 'Space Mono', monospace;
+    font-size: 11px; letter-spacing: 2px;
+    color: var(--text-dim);
+    background: none; border: 1px solid var(--border);
+    padding: 10px 20px; border-radius: 4px;
+    cursor: pointer; transition: all 0.2s;
+    text-decoration: none;
+  }
+  .back-lab-btn:hover { color: var(--cyan); border-color: var(--cyan); }
+
+  /* ══════════════════════════════════════
+     GAME SCREEN
+  ══════════════════════════════════════ */
+  #screen-game {
+    flex-direction: column;
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  /* TOP NAV */
+  .top-nav {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 24px;
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .nav-left { display: flex; align-items: center; gap: 16px; }
+  .nav-station {
+    font-size: 10px; letter-spacing: 3px;
+    color: var(--cyan); opacity: 0.8;
+  }
+  .nav-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 14px; font-weight: 700;
+    color: var(--text-bright);
+  }
+  .nav-right { display: flex; align-items: center; gap: 12px; }
+  .nav-btn {
+    font-family: 'Space Mono', monospace;
+    font-size: 10px; letter-spacing: 2px;
+    background: none; border: 1px solid var(--border);
+    color: var(--text-dim); padding: 7px 16px;
+    border-radius: 3px; cursor: pointer; transition: all 0.2s;
+  }
+  .nav-btn:hover { color: var(--cyan); border-color: var(--cyan); }
+  .level-indicator {
+    font-size: 10px; letter-spacing: 2px;
+    color: var(--text-dim);
+    padding: 7px 14px;
+    background: var(--panel2);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+  }
+  .level-indicator span { color: var(--cyan); }
+
+  /* MAIN LAYOUT */
+  .game-body {
+    display: grid;
+    grid-template-columns: 240px 1fr 240px;
+    gap: 0;
+    flex: 1;
+    overflow: hidden;
+  }
+
+  .sidebar {
+    background: var(--panel);
+    border-right: 1px solid var(--border);
+    padding: 20px 16px;
+    display: flex; flex-direction: column; gap: 16px;
+    overflow-y: auto;
+  }
+  .sidebar.right { border-right: none; border-left: 1px solid var(--border); }
+
+  .center-panel {
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    padding: 24px;
+    position: relative;
+    background: radial-gradient(ellipse at 50% 40%, rgba(0,229,255,0.03) 0%, transparent 70%);
+  }
+
+  /* PANEL WIDGETS */
+  .widget {
+    background: var(--panel2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 14px;
+  }
+  .widget-label {
+    font-size: 9px; letter-spacing: 3px; text-transform: uppercase;
+    color: var(--text-dim); margin-bottom: 10px;
+  }
+
+  /* TURN COUNTER */
+  .turn-display {
+    text-align: center;
+    padding: 16px;
+  }
+  .turn-num {
+    font-family: 'Syne', sans-serif;
+    font-size: 48px; font-weight: 800;
+    color: var(--text-bright);
+    line-height: 1;
+    margin-bottom: 4px;
+  }
+  .turn-num.warning { color: var(--amber); }
+  .turn-num.danger { color: var(--red); }
+  .turn-label { font-size: 9px; letter-spacing: 3px; color: var(--text-dim); }
+
+  /* TARGET ZONE */
+  .target-display {
+    text-align: center;
+  }
+  .target-cells {
+    display: flex; justify-content: center; gap: 4px; margin-top: 8px;
+  }
+  .target-cell-mini {
+    width: 20px; height: 20px; border-radius: 3px;
+    background: var(--green-dim);
+    border: 1px solid rgba(16,185,129,0.4);
+  }
+
+  /* ACTION BUTTONS */
+  .action-btn {
+    width: 100%;
+    padding: 16px 12px;
+    border-radius: 6px;
+    border: none; cursor: pointer;
+    font-family: 'Space Mono', monospace;
+    font-size: 11px; font-weight: 700;
+    letter-spacing: 1px;
+    transition: all 0.15s;
+    position: relative; overflow: hidden;
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+  }
+  .action-btn::after {
+    content: '';
+    position: absolute; inset: 0;
+    background: white;
+    opacity: 0;
+    transition: opacity 0.1s;
+  }
+  .action-btn:active::after { opacity: 0.05; }
+  .action-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+  .btn-position {
+    background: var(--cyan-dim);
+    border: 1px solid var(--cyan);
+    color: var(--cyan);
+  }
+  .btn-position:hover:not(:disabled) {
+    background: rgba(0,229,255,0.25);
+    box-shadow: 0 0 20px var(--cyan-glow);
+  }
+  .btn-momentum {
+    background: var(--amber-dim);
+    border: 1px solid var(--amber);
+    color: var(--amber);
+  }
+  .btn-momentum:hover:not(:disabled) {
+    background: rgba(245,158,11,0.25);
+    box-shadow: 0 0 20px var(--amber-glow);
+  }
+  .btn-icon { font-size: 18px; }
+  .btn-sublabel { font-size: 9px; opacity: 0.7; letter-spacing: 0.5px; }
+
+  /* LAST ACTION */
+  .last-action {
+    font-size: 10px; color: var(--text-dim);
+    min-height: 36px; line-height: 1.6;
+  }
+  .last-action .act-cyan { color: var(--cyan); }
+  .last-action .act-amber { color: var(--amber); }
+
+  /* GRID */
+  #grid-canvas {
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    display: block;
+  }
+
+  .grid-wrapper {
+    position: relative;
+    display: flex; flex-direction: column; align-items: center;
+    gap: 16px;
+    width: 100%;
+  }
+
+  .momentum-arrow-wrap {
+    height: 40px;
+    display: flex; align-items: center; justify-content: center;
+    width: 100%;
+  }
+  #arrow-canvas { display: block; }
+
+  /* UNCERTAINTY METERS */
+  .uncertainty-meters { display: flex; flex-direction: column; gap: 12px; }
+
+  .meter-wrap { display: flex; flex-direction: column; gap: 6px; }
+  .meter-header { display: flex; justify-content: space-between; align-items: center; }
+  .meter-name { font-size: 9px; letter-spacing: 2px; color: var(--text-dim); }
+  .meter-val { font-size: 12px; font-weight: 700; }
+  .meter-val.cyan { color: var(--cyan); }
+  .meter-val.amber { color: var(--amber); }
+
+  .meter-track {
+    height: 8px; background: rgba(255,255,255,0.05);
+    border-radius: 4px; overflow: hidden;
+    border: 1px solid var(--border);
+  }
+  .meter-fill {
+    height: 100%; border-radius: 4px;
+    transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .meter-fill.cyan { background: linear-gradient(90deg, rgba(0,229,255,0.4), var(--cyan)); }
+  .meter-fill.amber { background: linear-gradient(90deg, rgba(245,158,11,0.4), var(--amber)); }
+
+  .inverse-link {
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+    font-size: 9px; letter-spacing: 1px; color: var(--text-dim);
+  }
+  .inverse-link::before, .inverse-link::after {
+    content: ''; flex: 1; height: 1px;
+    background: var(--border);
+  }
+
+  /* TURN HISTORY */
+  .history-list { display: flex; flex-direction: column; gap: 6px; }
+  .history-item {
+    font-size: 10px; padding: 8px 10px;
+    background: rgba(255,255,255,0.03);
+    border-radius: 4px; border-left: 2px solid var(--border);
+    color: var(--text-dim); line-height: 1.5;
+    animation: fadeSlide 0.3s ease;
+  }
+  .history-item.pos { border-left-color: var(--cyan); }
+  .history-item.mom { border-left-color: var(--amber); }
+  @keyframes fadeSlide {
+    from { opacity: 0; transform: translateX(-8px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+
+  /* HINT */
+  .hint-toggle {
+    display: flex; align-items: center; justify-content: space-between;
+    background: none; border: 1px solid var(--border);
+    padding: 8px 12px; border-radius: 4px;
+    cursor: pointer; width: 100%; transition: all 0.2s;
+    color: var(--text-dim); font-size: 10px; letter-spacing: 1px;
+    font-family: 'Space Mono', monospace;
+  }
+  .hint-toggle:hover { border-color: var(--text-dim); color: var(--text); }
+  .hint-box {
+    font-size: 10px; color: var(--text-dim); line-height: 1.7;
+    padding: 10px; background: rgba(0,229,255,0.04);
+    border: 1px solid rgba(0,229,255,0.12); border-radius: 4px;
+    display: none;
+  }
+  .hint-box.visible { display: block; }
+
+  /* ══════════════════════════════════════
+     RESULT OVERLAY
+  ══════════════════════════════════════ */
+  .overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(4,6,13,0.92);
+    z-index: 1000; align-items: center; justify-content: center;
+    backdrop-filter: blur(4px);
+  }
+  .overlay.active { display: flex; }
+
+  .result-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 48px 56px;
+    text-align: center;
+    max-width: 460px; width: 90%;
+    position: relative; overflow: hidden;
+  }
+  .result-card::before {
+    content: ''; position: absolute;
+    top: 0; left: 0; right: 0; height: 2px;
+  }
+  .result-card.win::before { background: var(--green); }
+  .result-card.lose::before { background: var(--red); }
+
+  .result-icon { font-size: 48px; margin-bottom: 16px; }
+  .result-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 28px; font-weight: 800;
+    margin-bottom: 8px;
+  }
+  .result-card.win .result-title { color: var(--green); }
+  .result-card.lose .result-title { color: var(--red); }
+  .result-msg { font-size: 12px; color: var(--text-dim); line-height: 1.8; margin-bottom: 32px; }
+
+  .result-actions { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+  .res-btn {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px; letter-spacing: 2px;
+    padding: 12px 24px; border-radius: 4px;
+    cursor: pointer; transition: all 0.2s; border: 1px solid;
+  }
+  .res-btn-primary {
+    background: var(--cyan-dim); color: var(--cyan);
+    border-color: var(--cyan);
+  }
+  .res-btn-primary:hover { background: rgba(0,229,255,0.25); box-shadow: 0 0 20px var(--cyan-glow); }
+  .res-btn-secondary {
+    background: none; color: var(--text-dim);
+    border-color: var(--border);
+  }
+  .res-btn-secondary:hover { color: var(--text); border-color: var(--text-dim); }
+
+  /* DECOHERENCE WARNING */
+  .decoherence-warn {
+    position: absolute; top: 8px; left: 50%; transform: translateX(-50%);
+    font-size: 9px; letter-spacing: 2px; color: var(--amber);
+    background: var(--amber-dim); border: 1px solid rgba(245,158,11,0.3);
+    padding: 4px 12px; border-radius: 3px;
+    display: none; animation: pulse 1s ease infinite;
+  }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.5; } }
+
+  /* RESPONSIVE */
+  @media (max-width: 768px) {
+    .game-body {
+      grid-template-columns: 1fr;
+      grid-template-rows: auto 1fr auto;
+      overflow-y: auto;
+    }
+    #screen-game { height: auto; overflow: auto; }
+    .sidebar { border-right: none; border-bottom: 1px solid var(--border); }
+    .sidebar.right { border-left: none; border-top: 1px solid var(--border); }
+  }
+</style>
+</head>
+<body>
+
+<!-- ════════════════════════════════════
+     LEVEL SELECT SCREEN
+════════════════════════════════════ -->
+<div id="screen-select" class="screen active">
+  <div class="select-header">
+    <div class="station-label">STATION 02 · QUANTUM RESEARCH LAB</div>
+    <h1 class="select-title">Heisenberg's Dilemma</h1>
+    <p class="select-subtitle">
+      A quantum particle refuses to be pinned down. The more precisely you locate it,
+      the less you know where it's going — and vice versa. Guide it to the target.
+      Feel why the uncertainty principle is not a flaw. It is the law.
+    </p>
+  </div>
+
+  <div class="levels-grid" id="levels-grid">
+    <!-- populated by JS -->
+  </div>
+
+  <button class="back-lab-btn" onclick="goToLab()">← BACK TO LAB</button>
+</div>
+
+<!-- ════════════════════════════════════
+     GAME SCREEN
+════════════════════════════════════ -->
+<div id="screen-game" class="screen">
+  <div class="top-nav">
+    <div class="nav-left">
+      <span class="nav-station">STA-02</span>
+      <span class="nav-title">Heisenberg's Dilemma</span>
+    </div>
+    <div class="nav-right">
+      <span class="level-indicator">LEVEL <span id="nav-level-num">1</span></span>
+      <button class="nav-btn" onclick="restartLevel()">RESTART</button>
+      <button class="nav-btn" onclick="showSelect()">LEVELS</button>
+      <button class="nav-btn" onclick="goToLab()">← LAB</button>
+    </div>
+  </div>
+
+  <div class="game-body">
+
+    <!-- LEFT SIDEBAR -->
+    <div class="sidebar" id="left-sidebar">
+
+      <!-- Turn Counter -->
+      <div class="widget">
+        <div class="widget-label">TURNS REMAINING</div>
+        <div class="turn-display">
+          <div class="turn-num" id="turn-display">10</div>
+          <div class="turn-label">TURNS LEFT</div>
+        </div>
+      </div>
+
+      <!-- Target Zone -->
+      <div class="widget">
+        <div class="widget-label">TARGET ZONE</div>
+        <div class="target-display">
+          <div class="target-cells" id="target-mini"></div>
+          <div style="font-size:10px;color:var(--text-dim);margin-top:8px;" id="target-label">Cells 7–9</div>
+        </div>
+      </div>
+
+      <!-- Actions -->
+      <button class="action-btn btn-position" id="btn-pos" onclick="measurePosition()">
+        <span class="btn-icon">📍</span>
+        <span>MEASURE POSITION</span>
+        <span class="btn-sublabel">Collapses cloud → random jump</span>
+      </button>
+      <button class="action-btn btn-momentum" id="btn-mom" onclick="measureMomentum()">
+        <span class="btn-icon">↗</span>
+        <span>MEASURE MOMENTUM</span>
+        <span class="btn-sublabel">Reveals direction → spreads cloud</span>
+      </button>
+
+      <!-- Last Action -->
+      <div class="widget">
+        <div class="widget-label">LAST ACTION</div>
+        <div class="last-action" id="last-action">—</div>
+      </div>
+
+      <!-- Hint -->
+      <button class="hint-toggle" id="hint-toggle" onclick="toggleHint()">
+        HINT <span id="hint-arrow">▼</span>
+      </button>
+      <div class="hint-box" id="hint-box">
+        Measure momentum first to see direction, then measure position when the particle nears the target. Perfect play still fails sometimes — that's the uncertainty principle working.
+      </div>
+
+    </div>
+
+    <!-- CENTER PANEL -->
+    <div class="center-panel" id="center-panel">
+      <div class="decoherence-warn" id="decoherence-warn">⚡ DECOHERENCE — CLOUD SPREADING</div>
+      <div class="grid-wrapper">
+        <div class="momentum-arrow-wrap">
+          <canvas id="arrow-canvas" width="600" height="40"></canvas>
+        </div>
+        <canvas id="grid-canvas"></canvas>
+        <div id="particle2-row" style="display:none; width:100%;">
+          <canvas id="grid-canvas2" style="border-radius:6px;border:1px solid var(--border);display:block;margin-top:12px;"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT SIDEBAR -->
+    <div class="sidebar right">
+
+      <!-- Uncertainty Meters -->
+      <div class="widget uncertainty-meters">
+        <div class="widget-label">UNCERTAINTY PRINCIPLE</div>
+
+        <div class="meter-wrap">
+          <div class="meter-header">
+            <span class="meter-name">POSITION CERTAINTY</span>
+            <span class="meter-val cyan" id="pos-val">50%</span>
+          </div>
+          <div class="meter-track"><div class="meter-fill cyan" id="pos-meter" style="width:50%"></div></div>
+        </div>
+
+        <div class="inverse-link">INVERSELY COUPLED</div>
+
+        <div class="meter-wrap">
+          <div class="meter-header">
+            <span class="meter-name">MOMENTUM CERTAINTY</span>
+            <span class="meter-val amber" id="mom-val">50%</span>
+          </div>
+          <div class="meter-track"><div class="meter-fill amber" id="mom-meter" style="width:50%"></div></div>
+        </div>
+
+        <div style="font-size:9px;color:var(--text-dim);line-height:1.7;margin-top:8px;">
+          Σ(Δx · Δp) ≥ ℏ/2 — the sum is always bounded. Gaining certainty in one always costs the other.
+        </div>
+      </div>
+
+      <!-- Second particle meters for level 4 -->
+      <div class="widget uncertainty-meters" id="meters2" style="display:none;">
+        <div class="widget-label">PARTICLE 2 UNCERTAINTY</div>
+        <div class="meter-wrap">
+          <div class="meter-header">
+            <span class="meter-name">POSITION CERTAINTY</span>
+            <span class="meter-val cyan" id="pos-val2">50%</span>
+          </div>
+          <div class="meter-track"><div class="meter-fill cyan" id="pos-meter2" style="width:50%"></div></div>
+        </div>
+        <div class="inverse-link">INVERSELY COUPLED</div>
+        <div class="meter-wrap">
+          <div class="meter-header">
+            <span class="meter-name">MOMENTUM CERTAINTY</span>
+            <span class="meter-val amber" id="mom-val2">50%</span>
+          </div>
+          <div class="meter-track"><div class="meter-fill amber" id="mom-meter2" style="width:50%"></div></div>
+        </div>
+      </div>
+
+      <!-- Turn History -->
+      <div class="widget" style="flex:1;">
+        <div class="widget-label">TURN HISTORY</div>
+        <div class="history-list" id="history-list">
+          <div style="font-size:10px;color:var(--text-dim);">No actions yet.</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════
+     RESULT OVERLAY
+════════════════════════════════════ -->
+<div class="overlay" id="result-overlay">
+  <div class="result-card" id="result-card">
+    <div class="result-icon" id="result-icon">✓</div>
+    <div class="result-title" id="result-title">SUCCESS</div>
+    <div class="result-msg" id="result-msg"></div>
+    <div class="result-actions">
+      <button class="res-btn res-btn-primary" id="res-next-btn" onclick="nextLevel()">NEXT LEVEL →</button>
+      <button class="res-btn res-btn-secondary" onclick="restartLevel()">TRY AGAIN</button>
+      <button class="res-btn res-btn-secondary" onclick="showSelect()">ALL LEVELS</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+//  LEVEL DEFINITIONS
+// ═══════════════════════════════════════════════════════════════
+const LEVEL_DEFS = [
+  {
+    id: 1, name: "First Contact",
+    badge: "EASY", badgeClass: "badge-easy",
+    desc: "Wide target zone. Learn the two measurement types and how they trade off.",
+    targetSize: 5, targetStart: 5, turns: 10,
+    decoherence: false, particles: 1, movingTarget: false
+  },
+  {
+    id: 2, name: "The Squeeze",
+    badge: "EASY", badgeClass: "badge-easy",
+    desc: "Target zone narrows to 3 cells. Precision now matters. Plan your measurements.",
+    targetSize: 3, targetStart: 6, turns: 10,
+    decoherence: false, particles: 1, movingTarget: false
+  },
+  {
+    id: 3, name: "Decoherence",
+    badge: "MED", badgeClass: "badge-med",
+    desc: "The environment is watching. Wait too long without acting and the cloud spreads on its own.",
+    targetSize: 3, targetStart: 6, turns: 8,
+    decoherence: true, particles: 1, movingTarget: false
+  },
+  {
+    id: 4, name: "Entangled Pair",
+    badge: "HARD", badgeClass: "badge-hard",
+    desc: "Two particles, two target zones. Each measurement affects only one. Both must land.",
+    targetSize: 3, targetStart: 3, turns: 10,
+    decoherence: false, particles: 2, movingTarget: false,
+    target2Start: 9
+  },
+  {
+    id: 5, name: "Moving Target",
+    badge: "HARD", badgeClass: "badge-hard",
+    desc: "The target zone drifts. Chasing it costs you turns. Find the pattern.",
+    targetSize: 3, targetStart: 6, turns: 8,
+    decoherence: false, particles: 1, movingTarget: true
+  }
+];
+
+// ═══════════════════════════════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════════════════════════════
+const CELLS = 15;
+const CELL_W = 44;
+const CELL_H = 56;
+const PAD = 8;
+
+let state = {};
+let completedLevels = JSON.parse(localStorage.getItem('hd_completed') || '[]');
+let currentLevelId = 1;
+let animFrame = null;
+let decoherenceTimer = null;
+let activeParticle = 0; // for level 4 turn-taking
+
+function initState(levelDef) {
+  const startPos = Math.floor(Math.random() * 7) + 1;
+  const s = {
+    level: levelDef,
+    turns: levelDef.turns,
+    posScore: 50,
+    momScore: 50,
+    estPos: startPos,
+    direction: Math.random() < 0.5 ? -1 : 1,
+    speed: Math.floor(Math.random() * 2) + 1,
+    targetStart: levelDef.targetStart,
+    targetEnd: levelDef.targetStart + levelDef.targetSize - 1,
+    movingTargetDir: 1,
+    history: [],
+    lastAction: null,
+    gameOver: false,
+    won: false,
+    animating: false,
+    // For Gaussian rendering
+    cloudParticles: [],
+    // Level 4 second particle
+    p2: null
+  };
+
+  if (levelDef.particles === 2) {
+    s.p2 = {
+      posScore: 50, momScore: 50,
+      estPos: Math.floor(Math.random() * 4) + 9,
+      direction: Math.random() < 0.5 ? -1 : 1,
+      speed: Math.floor(Math.random() * 2) + 1,
+      targetStart: levelDef.target2Start,
+      targetEnd: levelDef.target2Start + levelDef.targetSize - 1
+    };
+    activeParticle = 0;
+  }
+
+  return s;
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  PHYSICS MODEL
+// ═══════════════════════════════════════════════════════════════
+function gaussian(x, mu, sigma) {
+  return Math.exp(-0.5 * Math.pow((x - mu) / sigma, 2));
+}
+
+function getCloudProbs(posScore, estPos) {
+  const sigma = (100 - posScore) / 15 + 0.5; // wider when uncertain
+  let probs = [];
+  let sum = 0;
+  for (let i = 0; i < CELLS; i++) {
+    const v = gaussian(i, estPos, sigma);
+    probs.push(v);
+    sum += v;
+  }
+  return probs.map(v => v / sum);
+}
+
+function doMeasurePosition(particle) {
+  const p = particle === 0 ? state : state.p2;
+
+  // Increase pos certainty
+  p.posScore = Math.min(90, p.posScore + 30);
+  p.momScore = 100 - p.posScore;
+
+  // Collapse: pick actual cell from Gaussian distribution
+  const probs = getCloudProbs(p.posScore, p.estPos);
+  const r = Math.random();
+  let cum = 0;
+  let actualPos = p.estPos;
+  for (let i = 0; i < CELLS; i++) {
+    cum += probs[i];
+    if (r <= cum) { actualPos = i; break; }
+  }
+  p.estPos = actualPos;
+
+  // Schedule jump (momentum was unknown → random)
+  const jumpMag = Math.max(1, Math.floor((100 - p.momScore) / 20) + Math.floor(Math.random() * 3));
+  const jumpDir = Math.random() < 0.5 ? -1 : 1;
+  p.pendingJump = { mag: jumpMag, dir: jumpDir };
+  p.pendingJumpType = 'pos';
+
+  return { posScore: p.posScore, momScore: p.momScore, pos: p.estPos, jumpMag, jumpDir };
+}
+
+function doMeasureMomentum(particle) {
+  const p = particle === 0 ? state : state.p2;
+
+  // Increase mom certainty
+  p.momScore = Math.min(90, p.momScore + 30);
+  p.posScore = 100 - p.momScore;
+
+  // Reveal direction, apply directed movement
+  const speed = p.speed;
+  const wobble = Math.floor((100 - p.posScore) / 30);
+  p.pendingJump = { mag: speed, dir: p.direction, wobble };
+  p.pendingJumpType = 'mom';
+
+  return { posScore: p.posScore, momScore: p.momScore, direction: p.direction, speed };
+}
+
+function applyPendingJump(particle) {
+  const p = particle === 0 ? state : state.p2;
+  if (!p.pendingJump) return;
+
+  const { mag, dir, wobble = 0 } = p.pendingJump;
+  let jump = mag + (wobble > 0 ? Math.floor(Math.random() * wobble) : 0);
+  if (p.pendingJumpType === 'pos') {
+    // truly random direction and magnitude
+    const rDir = Math.random() < 0.5 ? -1 : 1;
+    p.estPos = Math.max(0, Math.min(CELLS - 1, p.estPos + rDir * jump));
+  } else {
+    p.estPos = Math.max(0, Math.min(CELLS - 1, p.estPos + dir * jump));
+    // randomly flip direction occasionally
+    if (Math.random() < 0.2) p.direction *= -1;
+  }
+  p.pendingJump = null;
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  CANVAS DRAWING
+// ═══════════════════════════════════════════════════════════════
+function getCanvas(id) { return document.getElementById(id); }
+
+function resizeCanvas() {
+  const c = getCanvas('grid-canvas');
+  const wrap = document.getElementById('center-panel');
+  const w = Math.min(wrap.clientWidth - 48, CELLS * CELL_W + PAD * 2);
+  const cellW = Math.floor((w - PAD * 2) / CELLS);
+  c.width = cellW * CELLS + PAD * 2;
+  c.height = CELL_H + PAD * 2;
+
+  const arrow = getCanvas('arrow-canvas');
+  arrow.width = c.width;
+
+  if (state.level && state.level.particles === 2) {
+    const c2 = getCanvas('grid-canvas2');
+    c2.width = c.width;
+    c2.height = CELL_H + PAD * 2;
+  }
+
+  drawAll();
+}
+
+function drawGrid(canvasId, particle) {
+  const c = getCanvas(canvasId);
+  const ctx = c.getContext('2d');
+  const p = particle === 0 ? state : state.p2;
+  const cellW = Math.floor((c.width - PAD * 2) / CELLS);
+  const cellH = CELL_H;
+
+  ctx.clearRect(0, 0, c.width, c.height);
+
+  const probs = getCloudProbs(p.posScore, p.estPos);
+
+  // Background
+  ctx.fillStyle = '#0f1628';
+  ctx.fillRect(0, 0, c.width, c.height);
+
+  for (let i = 0; i < CELLS; i++) {
+    const x = PAD + i * cellW;
+    const y = PAD;
+
+    const isTarget = (i >= p.targetStart && i <= p.targetEnd);
+    const prob = probs[i];
+
+    // Cell background
+    if (isTarget) {
+      ctx.fillStyle = 'rgba(16,185,129,0.08)';
+      ctx.fillRect(x, y, cellW - 2, cellH);
+      // Target border
+      ctx.strokeStyle = 'rgba(16,185,129,0.4)';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(x, y, cellW - 2, cellH);
+    } else {
+      ctx.fillStyle = 'rgba(26,37,64,0.6)';
+      ctx.fillRect(x, y, cellW - 2, cellH);
+      ctx.strokeStyle = '#1a2540';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(x, y, cellW - 2, cellH);
+    }
+
+    // Probability cloud (Gaussian color fill)
+    if (prob > 0.001) {
+      const alpha = Math.min(0.9, prob * 4);
+      const grd = ctx.createLinearGradient(x, y, x, y + cellH);
+
+      if (p.posScore >= 70) {
+        // Narrow spike — cyan
+        grd.addColorStop(0, `rgba(0,229,255,0)`);
+        grd.addColorStop(0.3, `rgba(0,229,255,${alpha * 0.6})`);
+        grd.addColorStop(0.5, `rgba(0,229,255,${alpha})`);
+        grd.addColorStop(0.7, `rgba(0,229,255,${alpha * 0.6})`);
+        grd.addColorStop(1, `rgba(0,229,255,0)`);
+      } else {
+        // Wide cloud — purple-cyan gradient
+        const r = Math.floor(80 * alpha);
+        const g = Math.floor(100 * alpha);
+        const b = Math.floor(200 * alpha);
+        grd.addColorStop(0, `rgba(${r},${g},${b},0)`);
+        grd.addColorStop(0.5, `rgba(${r},${g},${b},${alpha * 0.8})`);
+        grd.addColorStop(1, `rgba(${r},${g},${b},0)`);
+      }
+
+      ctx.fillStyle = grd;
+      ctx.fillRect(x, y, cellW - 2, cellH);
+    }
+
+    // Cell index labels
+    ctx.fillStyle = isTarget ? 'rgba(16,185,129,0.6)' : 'rgba(90,112,153,0.5)';
+    ctx.font = '8px Space Mono';
+    ctx.textAlign = 'center';
+    ctx.fillText(i + 1, x + (cellW - 2) / 2, y + cellH - 6);
+
+    // Peak marker (most likely position)
+    if (i === p.estPos) {
+      const cx = x + (cellW - 2) / 2;
+      const cy = y + cellH / 2 - 4;
+      const r = p.posScore >= 70 ? 6 : 4;
+
+      ctx.beginPath();
+      ctx.arc(cx, cy, r, 0, Math.PI * 2);
+
+      if (p.posScore >= 70) {
+        ctx.fillStyle = '#00e5ff';
+        ctx.fill();
+        ctx.shadowColor = '#00e5ff';
+        ctx.shadowBlur = 12;
+        ctx.fill();
+        ctx.shadowBlur = 0;
+      } else {
+        ctx.fillStyle = 'rgba(0,229,255,0.4)';
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(0,229,255,0.7)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+      }
+    }
+  }
+
+  // Target zone label
+  ctx.fillStyle = 'rgba(16,185,129,0.7)';
+  ctx.font = '9px Space Mono';
+  ctx.textAlign = 'center';
+  const midCell = Math.floor((p.targetStart + p.targetEnd) / 2);
+  const tx = PAD + midCell * cellW + (cellW - 2) / 2;
+  ctx.fillText('TARGET', tx, PAD - 3);
+}
+
+function drawArrow(particle) {
+  const c = getCanvas('arrow-canvas');
+  const ctx = c.getContext('2d');
+  ctx.clearRect(0, 0, c.width, c.height);
+
+  const p = particle === 0 ? state : (state.p2 || state);
+
+  if (p.momScore < 60) return; // only show when momentum is known
+
+  const cellW = Math.floor((c.width - PAD * 2) / CELLS);
+  const cx = PAD + p.estPos * cellW + (cellW - 2) / 2;
+  const cy = c.height / 2;
+
+  const arrowLen = 30 + (p.momScore - 60) / 2;
+  const dx = p.direction * arrowLen;
+
+  ctx.strokeStyle = '#f59e0b';
+  ctx.lineWidth = 2;
+  ctx.shadowColor = '#f59e0b';
+  ctx.shadowBlur = 8;
+
+  // Arrow line
+  ctx.beginPath();
+  ctx.moveTo(cx - dx * 0.5, cy);
+  ctx.lineTo(cx + dx * 0.5, cy);
+  ctx.stroke();
+
+  // Arrowhead
+  const hx = cx + dx * 0.5;
+  const hDir = p.direction;
+  ctx.beginPath();
+  ctx.moveTo(hx, cy);
+  ctx.lineTo(hx - hDir * 8, cy - 5);
+  ctx.lineTo(hx - hDir * 8, cy + 5);
+  ctx.closePath();
+  ctx.fillStyle = '#f59e0b';
+  ctx.fill();
+  ctx.shadowBlur = 0;
+
+  // Speed label
+  ctx.fillStyle = 'rgba(245,158,11,0.7)';
+  ctx.font = '9px Space Mono';
+  ctx.textAlign = 'center';
+  const speedText = p.speed === 1 ? 'SLOW' : p.speed === 2 ? 'MEDIUM' : 'FAST';
+  ctx.fillText(`→ ${speedText}`, cx, cy - 14);
+}
+
+function drawAll() {
+  drawGrid('grid-canvas', 0);
+  drawArrow(0);
+  if (state.level && state.level.particles === 2 && state.p2) {
+    drawGrid('grid-canvas2', 1);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  UI UPDATES
+// ═══════════════════════════════════════════════════════════════
+function updateMeters() {
+  const pos = state.posScore;
+  const mom = state.momScore;
+
+  document.getElementById('pos-meter').style.width = pos + '%';
+  document.getElementById('mom-meter').style.width = mom + '%';
+  document.getElementById('pos-val').textContent = pos + '%';
+  document.getElementById('mom-val').textContent = mom + '%';
+
+  if (state.level && state.level.particles === 2 && state.p2) {
+    document.getElementById('pos-meter2').style.width = state.p2.posScore + '%';
+    document.getElementById('mom-meter2').style.width = state.p2.momScore + '%';
+    document.getElementById('pos-val2').textContent = state.p2.posScore + '%';
+    document.getElementById('mom-val2').textContent = state.p2.momScore + '%';
+  }
+
+  const turnEl = document.getElementById('turn-display');
+  turnEl.textContent = state.turns;
+  turnEl.className = 'turn-num';
+  if (state.turns <= 2) turnEl.classList.add('danger');
+  else if (state.turns <= 4) turnEl.classList.add('warning');
+}
+
+function addHistory(type, text) {
+  const list = document.getElementById('history-list');
+  if (list.querySelector('div[style]')) list.innerHTML = '';
+
+  const item = document.createElement('div');
+  item.className = `history-item ${type}`;
+  item.innerHTML = text;
+  list.insertBefore(item, list.firstChild);
+
+  // Keep max 4
+  while (list.children.length > 4) list.removeChild(list.lastChild);
+}
+
+function updateLastAction(html) {
+  document.getElementById('last-action').innerHTML = html;
+}
+
+function setButtonsEnabled(enabled) {
+  document.getElementById('btn-pos').disabled = !enabled;
+  document.getElementById('btn-mom').disabled = !enabled;
+}
+
+function buildTargetMini() {
+  const el = document.getElementById('target-mini');
+  const def = state.level;
+  el.innerHTML = '';
+  for (let i = 0; i < def.targetSize; i++) {
+    const d = document.createElement('div');
+    d.className = 'target-cell-mini';
+    el.appendChild(d);
+  }
+  document.getElementById('target-label').textContent =
+    `Cells ${state.targetStart + 1}–${state.targetEnd + 1}`;
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  DECOHERENCE
+// ═══════════════════════════════════════════════════════════════
+function startDecoherenceTimer() {
+  clearDecoherenceTimer();
+  if (!state.level.decoherence) return;
+
+  decoherenceTimer = setTimeout(() => {
+    if (state.gameOver || state.animating) return;
+    // Cloud spreads on its own
+    state.posScore = Math.max(10, state.posScore - 20);
+    state.momScore = 100 - state.posScore;
+    const warn = document.getElementById('decoherence-warn');
+    warn.style.display = 'block';
+    setTimeout(() => { warn.style.display = 'none'; }, 2000);
+    updateMeters();
+    drawAll();
+    startDecoherenceTimer();
+  }, 5000);
+}
+
+function clearDecoherenceTimer() {
+  if (decoherenceTimer) { clearTimeout(decoherenceTimer); decoherenceTimer = null; }
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  MOVING TARGET
+// ═══════════════════════════════════════════════════════════════
+function stepMovingTarget() {
+  if (!state.level.movingTarget) return;
+  const size = state.level.targetSize;
+  state.targetStart += state.movingTargetDir;
+  if (state.targetStart <= 0) { state.movingTargetDir = 1; state.targetStart = 0; }
+  if (state.targetStart + size >= CELLS) { state.movingTargetDir = -1; state.targetStart = CELLS - size - 1; }
+  state.targetEnd = state.targetStart + size - 1;
+  document.getElementById('target-label').textContent =
+    `Cells ${state.targetStart + 1}–${state.targetEnd + 1}`;
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  WIN CHECK
+// ═══════════════════════════════════════════════════════════════
+function checkWin() {
+  const inTarget1 = state.estPos >= state.targetStart && state.estPos <= state.targetEnd;
+
+  if (state.level.particles === 2) {
+    const inTarget2 = state.p2.estPos >= state.p2.targetStart && state.p2.estPos <= state.p2.targetEnd;
+    return inTarget1 && inTarget2;
+  }
+  return inTarget1;
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  ANIMATE PARTICLE JUMP
+// ═══════════════════════════════════════════════════════════════
+function animateJump(particle, fromPos, toPos, onDone) {
+  const p = particle === 0 ? state : state.p2;
+  const steps = 8;
+  let step = 0;
+
+  function tick() {
+    step++;
+    const t = step / steps;
+    // ease
+    const ease = t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
+    p.estPos = fromPos + (toPos - fromPos) * ease;
+    drawAll();
+    if (step < steps) {
+      animFrame = requestAnimationFrame(tick);
+    } else {
+      p.estPos = toPos;
+      drawAll();
+      onDone();
+    }
+  }
+  tick();
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  CORE GAME ACTIONS
+// ═══════════════════════════════════════════════════════════════
+function measurePosition() {
+  if (state.gameOver || state.animating) return;
+  state.animating = true;
+  setButtonsEnabled(false);
+  clearDecoherenceTimer();
+
+  // For level 4, determine which particle
+  const pIdx = state.level.particles === 2 ? activeParticle : 0;
+  const p = pIdx === 0 ? state : state.p2;
+
+  const beforePos = p.estPos;
+  doMeasurePosition(pIdx);
+  const afterPos = p.estPos;
+  const jump = p.pendingJump;
+
+  const pLabel = state.level.particles === 2 ? ` (P${pIdx + 1})` : '';
+
+  updateLastAction(`<span class="act-cyan">POSITION measured${pLabel}</span><br>
+    Cloud collapsed → Cell ${afterPos + 1}<br>
+    Momentum unknown → random jump pending`);
+  addHistory('pos',
+    `POSITION${pLabel}: collapsed → ${afterPos + 1}, jump pending`);
+
+  // Apply jump after short delay
+  setTimeout(() => {
+    const jFrom = p.estPos;
+    const jDir = jump.dir;
+    const jMag = jump.mag;
+    const jTo = Math.max(0, Math.min(CELLS - 1, jFrom + jDir * jMag));
+    p.pendingJump = null;
+
+    animateJump(pIdx, jFrom, jTo, () => {
+      // Degrade pos certainty slightly post-jump
+      p.posScore = Math.max(10, p.posScore - 10);
+      p.momScore = 100 - p.posScore;
+      state.turns--;
+      stepMovingTarget();
+      if (state.level.particles === 2) activeParticle = 1 - activeParticle;
+      updateMeters();
+      drawAll();
+
+      if (checkWin()) return endGame(true);
+      if (state.turns <= 0) return endGame(false);
+
+      state.animating = false;
+      setButtonsEnabled(true);
+      startDecoherenceTimer();
+    });
+  }, 400);
+}
+
+function measureMomentum() {
+  if (state.gameOver || state.animating) return;
+  state.animating = true;
+  setButtonsEnabled(false);
+  clearDecoherenceTimer();
+
+  const pIdx = state.level.particles === 2 ? activeParticle : 0;
+  const p = pIdx === 0 ? state : state.p2;
+
+  const beforePos = p.estPos;
+  const result = doMeasureMomentum(pIdx);
+
+  const dirStr = result.direction > 0 ? '→ RIGHT' : '← LEFT';
+  const speedStr = ['', 'SLOW', 'MEDIUM', 'FAST'][result.speed] || 'FAST';
+  const pLabel = state.level.particles === 2 ? ` (P${pIdx + 1})` : '';
+
+  updateLastAction(`<span class="act-amber">MOMENTUM measured${pLabel}</span><br>
+    Direction: ${dirStr}<br>
+    Speed: ${speedStr} — cloud spread across grid`);
+  addHistory('mom',
+    `MOMENTUM${pLabel}: ${dirStr} ${speedStr} — cloud spread`);
+
+  // Apply directed movement
+  const jFrom = p.estPos;
+  const jump = p.pendingJump;
+  const jTo = Math.max(0, Math.min(CELLS - 1, jFrom + jump.dir * jump.mag));
+  p.pendingJump = null;
+
+  setTimeout(() => {
+    animateJump(pIdx, jFrom, jTo, () => {
+      state.turns--;
+      stepMovingTarget();
+      if (state.level.particles === 2) activeParticle = 1 - activeParticle;
+      updateMeters();
+      drawAll();
+
+      if (checkWin()) return endGame(true);
+      if (state.turns <= 0) return endGame(false);
+
+      state.animating = false;
+      setButtonsEnabled(true);
+      startDecoherenceTimer();
+    });
+  }, 200);
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  END GAME
+// ═══════════════════════════════════════════════════════════════
+function endGame(won) {
+  state.gameOver = true;
+  state.won = won;
+  clearDecoherenceTimer();
+
+  if (won && !completedLevels.includes(currentLevelId)) {
+    completedLevels.push(currentLevelId);
+    localStorage.setItem('hd_completed', JSON.stringify(completedLevels));
+  }
+
+  const card = document.getElementById('result-card');
+  const icon = document.getElementById('result-icon');
+  const title = document.getElementById('result-title');
+  const msg = document.getElementById('result-msg');
+  const nextBtn = document.getElementById('res-next-btn');
+
+  if (won) {
+    card.className = 'result-card win';
+    icon.textContent = '◎';
+    title.textContent = 'PARTICLE CAPTURED';
+    const winMsgs = [
+      "The quantum world yielded — this time. You found the narrow window where uncertainty worked in your favour.",
+      "Precision and luck in perfect balance. The particle didn't want to be there, but the probability cloud agreed.",
+      "You've felt what quantum engineers feel every day: working with probability, not certainty.",
+      "The uncertainty principle didn't stop you — it shaped your strategy. That's the lesson."
+    ];
+    msg.textContent = winMsgs[Math.floor(Math.random() * winMsgs.length)];
+  } else {
+    card.className = 'result-card lose';
+    icon.textContent = '◌';
+    title.textContent = 'DECOHERENCE';
+    const loseMsgs = [
+      "The particle refused to cooperate. Knowing its position cost you its direction. Try alternating measurements.",
+      "Out of turns. Measuring position too often made momentum unknowable. Momentum measurement first — then position.",
+      "The uncertainty principle won. It always wins. But you can make it work harder next time.",
+      "Almost. The quantum world is probabilistic — even perfect strategy fails sometimes. That's the point."
+    ];
+    msg.textContent = loseMsgs[Math.floor(Math.random() * loseMsgs.length)];
+  }
+
+  nextBtn.style.display = currentLevelId < LEVEL_DEFS.length ? 'inline-flex' : 'none';
+
+  setTimeout(() => {
+    document.getElementById('result-overlay').classList.add('active');
+  }, 400);
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  NAVIGATION
+// ═══════════════════════════════════════════════════════════════
+function startLevel(id) {
+  currentLevelId = id;
+  const def = LEVEL_DEFS.find(l => l.id === id);
+  state = initState(def);
+
+  // Show/hide level 4 elements
+  const has2 = def.particles === 2;
+  document.getElementById('particle2-row').style.display = has2 ? 'block' : 'none';
+  document.getElementById('meters2').style.display = has2 ? 'block' : 'none';
+
+  document.getElementById('nav-level-num').textContent = id;
+  document.getElementById('result-overlay').classList.remove('active');
+  setButtonsEnabled(true);
+
+  document.getElementById('screen-select').classList.remove('active');
+  document.getElementById('screen-game').classList.add('active');
+
+  buildTargetMini();
+  updateMeters();
+
+  if (has2) {
+    const c2 = document.getElementById('grid-canvas2');
+    const c = document.getElementById('grid-canvas');
+    c2.width = c.width;
+    c2.height = c.height;
+  }
+
+  requestAnimationFrame(() => {
+    resizeCanvas();
+    startDecoherenceTimer();
+  });
+}
+
+function showSelect() {
+  clearDecoherenceTimer();
+  document.getElementById('result-overlay').classList.remove('active');
+  document.getElementById('screen-game').classList.remove('active');
+  document.getElementById('screen-select').classList.add('active');
+  buildLevelSelect();
+}
+
+function restartLevel() {
+  document.getElementById('result-overlay').classList.remove('active');
+  clearDecoherenceTimer();
+  startLevel(currentLevelId);
+}
+
+function nextLevel() {
+  if (currentLevelId < LEVEL_DEFS.length) {
+    startLevel(currentLevelId + 1);
+  }
+}
+
+function goToLab() {
+  // In standalone mode, just go to select. In real platform, navigate to shell.
+  showSelect();
+}
+
+function toggleHint() {
+  const box = document.getElementById('hint-box');
+  const arrow = document.getElementById('hint-arrow');
+  box.classList.toggle('visible');
+  arrow.textContent = box.classList.contains('visible') ? '▲' : '▼';
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  LEVEL SELECT BUILD
+// ═══════════════════════════════════════════════════════════════
+function buildLevelSelect() {
+  const grid = document.getElementById('levels-grid');
+  grid.innerHTML = '';
+  LEVEL_DEFS.forEach((def, i) => {
+    const unlocked = i === 0 || completedLevels.includes(def.id - 1);
+    const completed = completedLevels.includes(def.id);
+    const card = document.createElement('div');
+    card.className = 'level-card' + (completed ? ' completed' : '') + (!unlocked ? ' locked' : '');
+    card.innerHTML = `
+      ${!unlocked ? '<div class="lock-icon">🔒</div>' : ''}
+      <div class="level-num">LEVEL ${String(def.id).padStart(2,'0')}</div>
+      <div class="level-name">${def.name}</div>
+      <div class="level-desc">${def.desc}</div>
+      <div class="level-badge ${completed ? 'badge-done' : def.badgeClass}">${completed ? 'DONE' : def.badge}</div>
+    `;
+    if (unlocked) card.onclick = () => startLevel(def.id);
+    grid.appendChild(card);
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════════════════════════
+window.addEventListener('resize', () => {
+  if (document.getElementById('screen-game').classList.contains('active')) resizeCanvas();
+});
+
+buildLevelSelect();
+</script>
+</body>
+</html>
