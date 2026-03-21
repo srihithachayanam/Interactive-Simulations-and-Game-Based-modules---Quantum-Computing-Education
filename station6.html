@@ -1,0 +1,1851 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Station 06 — Quantum Error Warden</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --bg: #04060d;
+    --panel: #0f1628;
+    --border: #1a2540;
+    --cyan: #00e5ff;
+    --amber: #f59e0b;
+    --green: #10b981;
+    --red: #ef4444;
+    --teal: #00ffcc;
+    --purple: #a855f7;
+    --text: #c8d8f0;
+    --dim: #4a6080;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Space Mono', monospace;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── SCREEN MANAGEMENT ── */
+  .screen { display: none; width: 100%; min-height: 100vh; }
+  .screen.active { display: flex; flex-direction: column; }
+
+  /* ── LEVEL SELECT ── */
+  #screen-select {
+    align-items: center;
+    justify-content: center;
+    padding: 40px 20px;
+    background: radial-gradient(ellipse at 50% 0%, #0a1a30 0%, var(--bg) 70%);
+  }
+  .select-header { text-align: center; margin-bottom: 48px; }
+  .station-tag {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 4px;
+    color: var(--cyan);
+    text-transform: uppercase;
+    margin-bottom: 12px;
+    opacity: 0.8;
+  }
+  .select-title {
+    font-family: 'Syne', sans-serif;
+    font-size: clamp(28px, 5vw, 48px);
+    font-weight: 800;
+    color: #fff;
+    line-height: 1.1;
+  }
+  .select-title span { color: var(--cyan); }
+  .select-subtitle {
+    margin-top: 12px;
+    font-size: 13px;
+    color: var(--dim);
+    max-width: 480px;
+    line-height: 1.6;
+  }
+  .level-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+    max-width: 900px;
+    width: 100%;
+  }
+  .level-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px 20px;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+    overflow: hidden;
+  }
+  .level-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: var(--cyan);
+    transform: scaleX(0);
+    transition: transform 0.2s;
+  }
+  .level-card:hover::before { transform: scaleX(1); }
+  .level-card:hover {
+    border-color: var(--cyan);
+    background: #111c35;
+    transform: translateY(-2px);
+  }
+  .level-card.locked { opacity: 0.4; cursor: not-allowed; }
+  .level-card.locked:hover { transform: none; border-color: var(--border); background: var(--panel); }
+  .level-card.locked:hover::before { transform: scaleX(0); }
+  .level-num {
+    font-size: 10px;
+    letter-spacing: 3px;
+    color: var(--cyan);
+    margin-bottom: 8px;
+    font-family: 'Space Mono', monospace;
+  }
+  .level-name {
+    font-family: 'Syne', sans-serif;
+    font-size: 16px;
+    font-weight: 700;
+    color: #fff;
+    margin-bottom: 8px;
+  }
+  .level-desc {
+    font-size: 11px;
+    color: var(--dim);
+    line-height: 1.5;
+  }
+  .level-badge {
+    position: absolute;
+    top: 12px; right: 12px;
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px;
+  }
+  .level-badge.complete { background: var(--green); color: #fff; }
+  .level-badge.locked-icon { background: var(--border); color: var(--dim); }
+  .level-card.special { border-color: var(--amber); }
+  .level-card.special .level-num { color: var(--amber); }
+  .level-card.special::before { background: var(--amber); }
+
+  /* ── GAME SCREEN ── */
+  #screen-game {
+    flex-direction: column;
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  /* TOP BAR */
+  .topbar {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    padding: 12px 24px;
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .back-btn {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--dim);
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    padding: 6px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.15s;
+    letter-spacing: 1px;
+  }
+  .back-btn:hover { border-color: var(--cyan); color: var(--cyan); }
+  .topbar-left { display: flex; align-items: center; gap: 16px; flex: 1; }
+  .logical-state {
+    display: flex; align-items: center; gap: 10px;
+    background: #0a1428;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 16px;
+  }
+  .padlock-icon { font-size: 20px; }
+  .state-info { }
+  .state-label-sm { font-size: 9px; letter-spacing: 2px; color: var(--dim); text-transform: uppercase; }
+  .state-value {
+    font-family: 'Syne', sans-serif;
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--cyan);
+  }
+  .topbar-center {
+    display: flex; align-items: center; gap: 24px;
+  }
+  .stat-box {
+    text-align: center;
+  }
+  .stat-label { font-size: 9px; letter-spacing: 2px; color: var(--dim); text-transform: uppercase; }
+  .stat-value {
+    font-family: 'Syne', sans-serif;
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--text);
+  }
+  .stat-value.danger { color: var(--red); }
+  .topbar-right { display: flex; align-items: center; gap: 12px; margin-left: auto; }
+  .level-pill {
+    background: var(--border);
+    border-radius: 20px;
+    padding: 4px 14px;
+    font-size: 11px;
+    letter-spacing: 2px;
+    color: var(--cyan);
+    text-transform: uppercase;
+  }
+
+  /* GAME BODY */
+  .game-body {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+    gap: 0;
+  }
+
+  /* CENTER AREA */
+  .center-area {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    gap: 32px;
+    position: relative;
+  }
+
+  /* QUBIT TILES ROW */
+  .qubit-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .qubit-tile {
+    border-radius: 12px;
+    border: 2px solid var(--border);
+    background: var(--panel);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.25s;
+    position: relative;
+    overflow: hidden;
+    cursor: default;
+    user-select: none;
+  }
+  .qubit-tile.data-tile {
+    width: 110px;
+    height: 130px;
+  }
+  .qubit-tile.syndrome-tile {
+    width: 80px;
+    height: 100px;
+    background: #080e1c;
+  }
+  .qubit-tile .tile-label {
+    font-size: 9px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--dim);
+    position: absolute;
+    top: 8px;
+  }
+  .qubit-tile .tile-icon { font-size: 28px; margin-top: 8px; }
+  .qubit-tile .tile-value {
+    font-family: 'Syne', sans-serif;
+    font-size: 28px;
+    font-weight: 800;
+    color: var(--text);
+    margin-top: 4px;
+  }
+  .qubit-tile .tile-sublabel { font-size: 9px; color: var(--dim); margin-top: 2px; }
+
+  /* Data tile states */
+  .qubit-tile.data-tile.clean { border-color: #1a2a4a; }
+  .qubit-tile.data-tile.clean .tile-value { color: var(--teal); }
+  .qubit-tile.data-tile.corrupted {
+    border-color: var(--red);
+    background: #1a0808;
+    animation: corruptPulse 0.5s ease;
+  }
+  .qubit-tile.data-tile.corrupted .tile-value { color: var(--red); }
+  .qubit-tile.data-tile.phase-corrupted {
+    border-color: var(--purple);
+    background: #100a1a;
+    animation: corruptPulse 0.5s ease;
+  }
+  .qubit-tile.data-tile.phase-corrupted .tile-value { color: var(--purple); }
+  .qubit-tile.data-tile.selected {
+    border-color: var(--cyan);
+    background: #071a24;
+    box-shadow: 0 0 20px rgba(0,229,255,0.2);
+  }
+  .crack-overlay {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+  .corrupted .crack-overlay, .phase-corrupted .crack-overlay { opacity: 1; }
+  .crack-line {
+    position: absolute;
+    background: rgba(255,80,80,0.6);
+    transform-origin: top left;
+  }
+  .phase-corrupted .crack-line { background: rgba(168,85,247,0.6); }
+
+  /* Syndrome tile states */
+  .qubit-tile.syndrome-tile .tile-value { font-size: 32px; }
+  .qubit-tile.syndrome-tile.syndrome-0 { border-color: var(--border); }
+  .qubit-tile.syndrome-tile.syndrome-0 .tile-value { color: var(--green); }
+  .qubit-tile.syndrome-tile.syndrome-1 {
+    border-color: var(--amber);
+    background: #0f0c00;
+  }
+  .qubit-tile.syndrome-tile.syndrome-1 .tile-value { color: var(--amber); }
+  .qubit-tile.syndrome-tile.phase-syndrome-1 {
+    border-color: var(--purple);
+    background: #0a0010;
+  }
+  .qubit-tile.syndrome-tile.phase-syndrome-1 .tile-value { color: var(--purple); }
+
+  .measurement-icon {
+    font-size: 14px;
+    position: absolute;
+    bottom: 8px;
+    color: var(--dim);
+  }
+
+  @keyframes corruptPulse {
+    0% { transform: scale(1); }
+    20% { transform: scale(1.06); }
+    40% { transform: scale(0.97); }
+    60% { transform: scale(1.03); }
+    100% { transform: scale(1); }
+  }
+  @keyframes glitch {
+    0%, 100% { transform: translate(0); }
+    20% { transform: translate(-3px, 1px); }
+    40% { transform: translate(2px, -2px); }
+    60% { transform: translate(-1px, 3px); }
+    80% { transform: translate(3px, -1px); }
+  }
+  .corrupted .tile-icon, .phase-corrupted .tile-icon {
+    animation: glitch 0.6s ease infinite;
+  }
+
+  /* Connector lines between tiles */
+  .qubit-row .connector {
+    width: 24px;
+    height: 2px;
+    background: var(--border);
+    flex-shrink: 0;
+    position: relative;
+  }
+  .qubit-row .connector::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--border);
+  }
+
+  /* RIGHT PANEL */
+  .right-panel {
+    width: 280px;
+    flex-shrink: 0;
+    background: #080e1c;
+    border-left: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    padding: 20px;
+    gap: 20px;
+    overflow-y: auto;
+  }
+  .panel-section { }
+  .panel-section-title {
+    font-size: 9px;
+    letter-spacing: 3px;
+    color: var(--dim);
+    text-transform: uppercase;
+    margin-bottom: 10px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  /* Syndrome readout */
+  .syndrome-readout {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px;
+  }
+  .syndrome-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+  }
+  .syndrome-key { font-size: 11px; color: var(--dim); }
+  .syndrome-val {
+    font-family: 'Syne', sans-serif;
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text);
+  }
+  .syndrome-val.active { color: var(--amber); }
+  .syndrome-interpretation {
+    margin-top: 10px;
+    padding: 8px 10px;
+    background: #0a1020;
+    border-radius: 6px;
+    font-size: 11px;
+    line-height: 1.5;
+    border-left: 2px solid var(--cyan);
+  }
+  .syndrome-interpretation.no-error { border-left-color: var(--green); color: var(--green); }
+  .syndrome-interpretation.error { border-left-color: var(--amber); color: var(--amber); }
+  .syndrome-interpretation.phase-error { border-left-color: var(--purple); color: var(--purple); }
+
+  /* Correction buttons */
+  .correction-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+  }
+  .corr-btn {
+    padding: 8px 4px;
+    border: 1px solid var(--border);
+    background: var(--panel);
+    color: var(--text);
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.15s;
+    text-align: center;
+  }
+  .corr-btn:hover { border-color: var(--cyan); color: var(--cyan); background: #071828; }
+  .corr-btn.selected {
+    border-color: var(--cyan);
+    background: #071a28;
+    color: var(--cyan);
+    box-shadow: inset 0 0 8px rgba(0,229,255,0.1);
+  }
+
+  .gate-toggle {
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+  }
+  .gate-btn {
+    flex: 1;
+    padding: 6px;
+    border: 1px solid var(--border);
+    background: var(--panel);
+    color: var(--dim);
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.15s;
+    text-align: center;
+  }
+  .gate-btn.active { border-color: var(--teal); color: var(--teal); background: #041414; }
+
+  .confirm-btn {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid var(--cyan);
+    background: #041828;
+    color: var(--cyan);
+    font-family: 'Space Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 2px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-transform: uppercase;
+  }
+  .confirm-btn:hover { background: #082038; box-shadow: 0 0 16px rgba(0,229,255,0.2); }
+  .confirm-btn:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+    box-shadow: none;
+  }
+
+  .duplicate-btn {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--dim);
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.15s;
+    letter-spacing: 1px;
+  }
+  .duplicate-btn:hover { border-color: var(--dim); color: var(--text); }
+
+  /* DECOHERENCE TIMER */
+  .timer-section {
+    padding: 16px 24px;
+    background: var(--panel);
+    border-top: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .timer-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+  }
+  .timer-label { font-size: 10px; letter-spacing: 2px; color: var(--dim); text-transform: uppercase; }
+  .timer-countdown { font-size: 12px; color: var(--text); font-family: 'Space Mono', monospace; }
+  .timer-bar-track {
+    width: 100%;
+    height: 8px;
+    background: #0a1020;
+    border-radius: 4px;
+    overflow: hidden;
+    position: relative;
+  }
+  .timer-bar-fill {
+    height: 100%;
+    border-radius: 4px;
+    background: linear-gradient(90deg, var(--green), var(--cyan));
+    transition: width 0.1s linear, background 0.3s;
+    position: relative;
+  }
+  .timer-bar-fill.warning {
+    background: linear-gradient(90deg, var(--red), var(--amber));
+    animation: timerFlash 0.4s ease infinite;
+  }
+  @keyframes timerFlash {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
+  }
+
+  /* HINT BOX */
+  .hint-box {
+    background: #04100c;
+    border: 1px solid var(--green);
+    border-radius: 6px;
+    padding: 10px 12px;
+    font-size: 11px;
+    line-height: 1.5;
+    color: var(--green);
+    opacity: 1;
+    transition: opacity 0.3s;
+  }
+  .hint-box.hidden { opacity: 0; pointer-events: none; }
+
+  /* ── OVERLAY MODALS ── */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(4,6,13,0.9);
+    z-index: 100;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(4px);
+  }
+  .modal-overlay.active { display: flex; }
+  .modal-box {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 36px 40px;
+    max-width: 520px;
+    width: 90%;
+    position: relative;
+  }
+  .modal-box.special { border-color: var(--amber); }
+  .modal-icon { font-size: 48px; margin-bottom: 16px; text-align: center; }
+  .modal-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 24px;
+    font-weight: 800;
+    color: #fff;
+    margin-bottom: 12px;
+    text-align: center;
+  }
+  .modal-title.amber { color: var(--amber); }
+  .modal-title.red { color: var(--red); }
+  .modal-title.green { color: var(--green); }
+  .modal-body {
+    font-size: 13px;
+    line-height: 1.7;
+    color: var(--text);
+    text-align: center;
+    margin-bottom: 24px;
+  }
+  .modal-body strong { color: var(--cyan); }
+  .modal-actions { display: flex; gap: 12px; justify-content: center; }
+  .modal-btn {
+    padding: 10px 28px;
+    border-radius: 8px;
+    font-family: 'Space Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 1px;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-transform: uppercase;
+  }
+  .modal-btn.primary {
+    background: var(--cyan);
+    color: var(--bg);
+    border: none;
+    font-weight: 700;
+  }
+  .modal-btn.primary:hover { background: var(--teal); }
+  .modal-btn.secondary {
+    background: transparent;
+    color: var(--dim);
+    border: 1px solid var(--border);
+  }
+  .modal-btn.secondary:hover { color: var(--text); border-color: var(--text); }
+  .modal-btn.amber { background: var(--amber); color: var(--bg); border: none; }
+
+  .distance-box {
+    background: #0a0800;
+    border: 1px solid var(--amber);
+    border-radius: 8px;
+    padding: 16px;
+    margin: 16px 0;
+    text-align: left;
+    font-size: 12px;
+    color: var(--amber);
+    line-height: 1.6;
+  }
+  .no-clone-box {
+    background: #040e10;
+    border: 1px solid var(--cyan);
+    border-radius: 8px;
+    padding: 14px 16px;
+    font-size: 12px;
+    color: var(--cyan);
+    line-height: 1.6;
+    margin-bottom: 16px;
+  }
+
+  /* Feedback flash */
+  .feedback-flash {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-family: 'Syne', sans-serif;
+    font-size: 22px;
+    font-weight: 800;
+    padding: 12px 28px;
+    border-radius: 10px;
+    pointer-events: none;
+    z-index: 50;
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+  .feedback-flash.show { opacity: 1; }
+  .feedback-flash.correct { background: var(--green); color: #fff; }
+  .feedback-flash.wrong { background: var(--red); color: #fff; }
+  .feedback-flash.error-event { background: var(--amber); color: #000; }
+
+  /* Level complete / fail animation */
+  @keyframes slideIn {
+    from { transform: translateY(30px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+  }
+  .modal-box { animation: slideIn 0.3s ease; }
+
+  /* ── INSTRUCTIONS MODAL ── */
+  .instructions-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin: 16px 0;
+    text-align: left;
+  }
+  .instr-card {
+    background: #04101e;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 14px;
+  }
+  .instr-card-icon { font-size: 20px; margin-bottom: 6px; }
+  .instr-card-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--cyan);
+    margin-bottom: 4px;
+  }
+  .instr-card-text { font-size: 11px; color: var(--dim); line-height: 1.5; }
+  .syndrome-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 11px;
+    margin: 10px 0;
+    text-align: left;
+  }
+  .syndrome-table th {
+    color: var(--dim);
+    font-weight: 400;
+    letter-spacing: 1px;
+    padding: 4px 8px;
+    border-bottom: 1px solid var(--border);
+  }
+  .syndrome-table td {
+    padding: 5px 8px;
+    border-bottom: 1px solid #0d1a2a;
+    color: var(--text);
+  }
+  .syndrome-table tr:last-child td { border-bottom: none; }
+  .syndrome-table .hi { color: var(--amber); font-weight: 700; }
+  .syndrome-table .ok { color: var(--green); }
+  .instr-level-row {
+    display: flex; align-items: flex-start; gap: 10px;
+    padding: 7px 0;
+    border-bottom: 1px solid #0d1a2a;
+    font-size: 11px;
+  }
+  .instr-level-row:last-child { border-bottom: none; }
+  .instr-lvl-badge {
+    background: var(--border);
+    color: var(--cyan);
+    border-radius: 4px;
+    padding: 2px 7px;
+    font-size: 10px;
+    letter-spacing: 1px;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+  .instr-lvl-badge.special { background: #1a0f00; color: var(--amber); }
+  .instr-section-label {
+    font-size: 9px;
+    letter-spacing: 3px;
+    color: var(--dim);
+    text-transform: uppercase;
+    margin: 14px 0 6px;
+  }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  .phase-label {
+    font-size: 9px;
+    letter-spacing: 1px;
+    color: var(--purple);
+    background: rgba(168,85,247,0.1);
+    border: 1px solid rgba(168,85,247,0.3);
+    border-radius: 3px;
+    padding: 1px 5px;
+    display: inline-block;
+    margin-top: 2px;
+  }
+
+  .no-clone-notification {
+    position: fixed;
+    bottom: 80px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--panel);
+    border: 1px solid var(--cyan);
+    border-radius: 10px;
+    padding: 14px 20px;
+    max-width: 420px;
+    font-size: 12px;
+    line-height: 1.5;
+    color: var(--cyan);
+    z-index: 200;
+    opacity: 0;
+    transition: opacity 0.3s;
+    pointer-events: none;
+    text-align: center;
+  }
+  .no-clone-notification.show { opacity: 1; }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════ LEVEL SELECT ═══ -->
+<div id="screen-select" class="screen active">
+  <div class="select-header">
+    <div class="station-tag">⬡ Quantum Research Lab — Station 06</div>
+    <h1 class="select-title">Quantum Error <span>Warden</span></h1>
+    <p class="select-subtitle">
+      Qubits are fragile. Errors are inevitable. Master the art of syndrome
+      measurement and error correction before decoherence destroys your logical qubit.
+    </p>
+  </div>
+  <div class="level-grid" id="level-grid">
+    <!-- filled by JS -->
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ GAME SCREEN ═══ -->
+<div id="screen-game" class="screen">
+
+  <!-- TOP BAR -->
+  <div class="topbar">
+    <div class="topbar-left">
+      <button class="back-btn" onclick="goToSelect()">◀ LAB</button>
+      <div class="logical-state">
+        <div class="padlock-icon" id="padlock-icon">🔒</div>
+        <div class="state-info">
+          <div class="state-label-sm">Logical State</div>
+          <div class="state-value" id="logical-state-val">|0⟩</div>
+        </div>
+      </div>
+      <div class="topbar-center">
+        <div class="stat-box">
+          <div class="stat-label">Errors</div>
+          <div class="stat-value" id="error-count-display">0/3</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-label">Corrected</div>
+          <div class="stat-value" id="corrected-display">0</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-label">Score</div>
+          <div class="stat-value" id="score-display">0</div>
+        </div>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <div class="level-pill" id="level-pill">LEVEL 1</div>
+    </div>
+  </div>
+
+  <!-- GAME BODY -->
+  <div class="game-body">
+
+    <!-- CENTER -->
+    <div class="center-area" id="center-area">
+      <div style="text-align:center;">
+        <div style="font-size:10px;letter-spacing:3px;color:var(--dim);text-transform:uppercase;margin-bottom:6px;" id="encoding-label">3-QUBIT BIT-FLIP CODE</div>
+        <div style="font-size:12px;color:var(--dim);" id="state-encoding">Encoding: |000⟩</div>
+      </div>
+
+      <!-- QUBIT ROW -->
+      <div class="qubit-row" id="qubit-row">
+        <!-- Syndrome A -->
+        <div class="qubit-tile syndrome-tile syndrome-0" id="tile-sA">
+          <div class="tile-label">SYNDROME A</div>
+          <div class="tile-icon">🔬</div>
+          <div class="tile-value" id="sA-val">0</div>
+          <div class="measurement-icon">⚙</div>
+        </div>
+        <div class="connector"></div>
+        <!-- Data 1 -->
+        <div class="qubit-tile data-tile clean" id="tile-d1" onclick="selectQubit(0)">
+          <div class="tile-label">DATA 1</div>
+          <div class="tile-icon" id="d1-icon">⬡</div>
+          <div class="tile-value" id="d1-val">0</div>
+          <div class="tile-sublabel" id="d1-sub">stable</div>
+          <div class="crack-overlay" id="crack1">
+            <div class="crack-line" style="width:2px;height:60%;top:20%;left:30%;transform:rotate(15deg)"></div>
+            <div class="crack-line" style="width:2px;height:40%;top:10%;left:55%;transform:rotate(-20deg)"></div>
+            <div class="crack-line" style="width:2px;height:30%;top:50%;left:45%;transform:rotate(35deg)"></div>
+          </div>
+        </div>
+        <div class="connector"></div>
+        <!-- Data 2 -->
+        <div class="qubit-tile data-tile clean" id="tile-d2" onclick="selectQubit(1)">
+          <div class="tile-label">DATA 2</div>
+          <div class="tile-icon" id="d2-icon">⬡</div>
+          <div class="tile-value" id="d2-val">0</div>
+          <div class="tile-sublabel" id="d2-sub">stable</div>
+          <div class="crack-overlay" id="crack2">
+            <div class="crack-line" style="width:2px;height:50%;top:15%;left:40%;transform:rotate(-10deg)"></div>
+            <div class="crack-line" style="width:2px;height:35%;top:45%;left:60%;transform:rotate(25deg)"></div>
+            <div class="crack-line" style="width:2px;height:45%;top:5%;left:25%;transform:rotate(40deg)"></div>
+          </div>
+        </div>
+        <div class="connector"></div>
+        <!-- Data 3 -->
+        <div class="qubit-tile data-tile clean" id="tile-d3" onclick="selectQubit(2)">
+          <div class="tile-label">DATA 3</div>
+          <div class="tile-icon" id="d3-icon">⬡</div>
+          <div class="tile-value" id="d3-val">0</div>
+          <div class="tile-sublabel" id="d3-sub">stable</div>
+          <div class="crack-overlay" id="crack3">
+            <div class="crack-line" style="width:2px;height:55%;top:10%;left:50%;transform:rotate(-5deg)"></div>
+            <div class="crack-line" style="width:2px;height:40%;top:40%;left:30%;transform:rotate(30deg)"></div>
+            <div class="crack-line" style="width:2px;height:30%;top:60%;left:65%;transform:rotate(-25deg)"></div>
+          </div>
+        </div>
+        <div class="connector"></div>
+        <!-- Syndrome B -->
+        <div class="qubit-tile syndrome-tile syndrome-0" id="tile-sB">
+          <div class="tile-label">SYNDROME B</div>
+          <div class="tile-icon">🔬</div>
+          <div class="tile-value" id="sB-val">0</div>
+          <div class="measurement-icon">⚙</div>
+        </div>
+      </div>
+
+      <!-- HINT BOX -->
+      <div class="hint-box" id="hint-box" style="max-width:560px;width:100%;">
+        💡 Read the syndrome pattern on the left panel to identify which qubit has an error. Syndrome measurement detects errors without revealing the qubit's value.
+      </div>
+
+      <!-- FEEDBACK FLASH -->
+      <div class="feedback-flash" id="feedback-flash"></div>
+    </div>
+
+    <!-- RIGHT PANEL -->
+    <div class="right-panel">
+
+      <div class="panel-section">
+        <div class="panel-section-title">Syndrome Readout</div>
+        <div class="syndrome-readout">
+          <div class="syndrome-row">
+            <span class="syndrome-key">Syndrome A</span>
+            <span class="syndrome-val" id="panel-sA">0</span>
+          </div>
+          <div class="syndrome-row">
+            <span class="syndrome-key">parity(D1 ⊕ D2)</span>
+            <span style="font-size:9px;color:var(--dim)">—</span>
+          </div>
+          <div class="syndrome-row" style="margin-top:8px;">
+            <span class="syndrome-key">Syndrome B</span>
+            <span class="syndrome-val" id="panel-sB">0</span>
+          </div>
+          <div class="syndrome-row">
+            <span class="syndrome-key">parity(D2 ⊕ D3)</span>
+            <span style="font-size:9px;color:var(--dim)">—</span>
+          </div>
+          <div class="syndrome-interpretation no-error" id="syndrome-interp">
+            No error detected — logical state is protected.
+          </div>
+        </div>
+      </div>
+
+      <div class="panel-section">
+        <div class="panel-section-title">Select Qubit to Correct</div>
+        <div class="correction-grid">
+          <button class="corr-btn" id="corr-d1" onclick="selectCorrTarget(0)">Data 1</button>
+          <button class="corr-btn" id="corr-d2" onclick="selectCorrTarget(1)">Data 2</button>
+          <button class="corr-btn" id="corr-d3" onclick="selectCorrTarget(2)">Data 3</button>
+        </div>
+      </div>
+
+      <div class="panel-section" id="gate-section">
+        <div class="panel-section-title">Correction Gate</div>
+        <div class="gate-toggle">
+          <button class="gate-btn active" id="gate-X" onclick="selectGate('X')">X Gate<br><span style="font-size:9px;color:var(--dim)">bit-flip fix</span></button>
+          <button class="gate-btn" id="gate-Z" onclick="selectGate('Z')" id="gate-z-btn">Z Gate<br><span style="font-size:9px;color:var(--dim)">phase fix</span></button>
+        </div>
+      </div>
+
+      <div class="panel-section">
+        <button class="confirm-btn" id="confirm-btn" onclick="applyCorrection()">
+          ✓ CONFIRM CORRECTION
+        </button>
+      </div>
+
+      <div class="panel-section">
+        <div class="panel-section-title">No-Cloning</div>
+        <button class="duplicate-btn" onclick="attemptClone()">⊕ DUPLICATE QUBIT STATE</button>
+      </div>
+
+      <div class="panel-section" id="level-info-panel" style="margin-top:auto;">
+        <div class="panel-section-title">Level Info</div>
+        <div style="font-size:11px;line-height:1.6;color:var(--dim);" id="level-info-text">
+          Correct errors before 3 accumulate. Read the syndrome pattern to locate the error.
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- TIMER BAR -->
+  <div class="timer-section">
+    <div class="timer-header">
+      <span class="timer-label">⚡ Decoherence Timer</span>
+      <span class="timer-countdown" id="timer-countdown">5.0s</span>
+    </div>
+    <div class="timer-bar-track">
+      <div class="timer-bar-fill" id="timer-bar-fill" style="width:100%"></div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ══════════════════════════════════════════════════════════ MODALS ═══ -->
+
+<!-- Instructions Modal -->
+<div class="modal-overlay" id="modal-instructions">
+  <div class="modal-box" style="max-width:620px;max-height:88vh;overflow-y:auto;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+      <div class="modal-title" style="text-align:left;margin:0;font-size:20px;">How to Play</div>
+      <div style="font-size:10px;letter-spacing:3px;color:var(--dim);">STATION 06</div>
+    </div>
+    <div style="font-size:12px;color:var(--dim);margin-bottom:14px;">
+      Protect the logical qubit from decoherence. Read syndromes. Apply corrections. Don't let 3 errors accumulate.
+    </div>
+
+    <!-- 4-card overview -->
+    <div class="instructions-grid">
+      <div class="instr-card">
+        <div class="instr-card-icon">⬡</div>
+        <div class="instr-card-title">Data Qubits</div>
+        <div class="instr-card-text">Three data tiles encode your logical qubit using the 3-qubit repetition code. A noise event will randomly flip one of them.</div>
+      </div>
+      <div class="instr-card">
+        <div class="instr-card-icon">🔬</div>
+        <div class="instr-card-title">Syndrome Qubits</div>
+        <div class="instr-card-text">Two ancilla tiles measure parity of qubit pairs without reading the data. Their 0/1 value tells you exactly which qubit failed.</div>
+      </div>
+      <div class="instr-card">
+        <div class="instr-card-icon">⚡</div>
+        <div class="instr-card-title">Decoherence Timer</div>
+        <div class="instr-card-text">The bottom bar depletes continuously. When it empties, a noise event fires. Correct errors fast before the next one arrives.</div>
+      </div>
+      <div class="instr-card">
+        <div class="instr-card-icon">🔒</div>
+        <div class="instr-card-title">Logical State</div>
+        <div class="instr-card-text">The padlock at the top shows the state you're protecting (|0⟩ or |1⟩). 3 uncorrected errors will unlock it — and lose the level.</div>
+      </div>
+    </div>
+
+    <!-- Syndrome table -->
+    <div class="instr-section-label">Syndrome Lookup Table</div>
+    <table class="syndrome-table">
+      <thead>
+        <tr>
+          <th>Syndrome A</th>
+          <th>Syndrome B</th>
+          <th>Meaning</th>
+          <th>Fix</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td class="ok">0</td><td class="ok">0</td><td class="ok">No error — all qubits clean</td><td class="ok">Do nothing</td></tr>
+        <tr><td class="hi">1</td><td class="ok">0</td><td>Error on <strong>Data 1</strong></td><td>Select D1 → X Gate</td></tr>
+        <tr><td class="hi">1</td><td class="hi">1</td><td>Error on <strong>Data 2</strong></td><td>Select D2 → X Gate</td></tr>
+        <tr><td class="ok">0</td><td class="hi">1</td><td>Error on <strong>Data 3</strong></td><td>Select D3 → X Gate</td></tr>
+      </tbody>
+    </table>
+    <div style="font-size:10px;color:var(--dim);margin-bottom:6px;">
+      For <span style="color:var(--purple)">phase-flip errors</span> (Levels 3+): same syndrome pattern, but tiles glow purple. Use <strong style="color:var(--teal)">Z Gate</strong> instead of X Gate.
+    </div>
+
+    <!-- Step by step -->
+    <div class="instr-section-label">Step-by-Step Each Round</div>
+    <div style="font-size:12px;line-height:1.9;color:var(--text);">
+      <span style="color:var(--cyan);font-weight:700;">① </span>Wait for a noise event — a data tile will crack and change color.<br/>
+      <span style="color:var(--cyan);font-weight:700;">② </span>Check the <strong>Syndrome Readout</strong> panel (right side) — it tells you which qubit is affected.<br/>
+      <span style="color:var(--cyan);font-weight:700;">③ </span>Click the correct <strong>Data 1 / 2 / 3</strong> button under "Select Qubit to Correct".<br/>
+      <span style="color:var(--cyan);font-weight:700;">④ </span>Choose <strong>X Gate</strong> for bit-flips (red tiles) or <strong>Z Gate</strong> for phase-flips (purple tiles).<br/>
+      <span style="color:var(--cyan);font-weight:700;">⑤ </span>Press <strong>CONFIRM CORRECTION</strong> before the timer runs out again.
+    </div>
+
+    <!-- Level overview -->
+    <div class="instr-section-label">Level Overview</div>
+    <div>
+      <div class="instr-level-row"><span class="instr-lvl-badge">LV 1</span><span>Bit-flips only · Full hints shown · 12 second timer · 3 corrections to win</span></div>
+      <div class="instr-level-row"><span class="instr-lvl-badge">LV 2</span><span>Bit-flips · No hints — read the syndrome numbers yourself · 9 second timer · 3 corrections to win</span></div>
+      <div class="instr-level-row"><span class="instr-lvl-badge">LV 3</span><span>Phase-flips introduced · Z-gate needed · 10 second timer · 3 corrections to win</span></div>
+      <div class="instr-level-row"><span class="instr-lvl-badge">LV 4</span><span>Mixed errors · 7 second timer · 5 corrections to win</span></div>
+      <div class="instr-level-row"><span class="instr-lvl-badge special">LV 5</span><span>⚠ Fix one error, then try the second — discover the d=3 code distance limit</span></div>
+    </div>
+
+    <div class="modal-actions" style="margin-top:20px;">
+      <button class="modal-btn primary" onclick="dismissInstructions()" style="padding:12px 48px;font-size:13px;">
+        ▶ START LEVEL
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- No-Clone Modal (first time) -->
+<div class="modal-overlay" id="modal-noclone">
+  <div class="modal-box">
+    <div class="modal-icon">🚫</div>
+    <div class="modal-title">No-Cloning Theorem</div>
+    <div class="no-clone-box">
+      Quantum states cannot be copied — this is the <strong style="color:#fff">no-cloning theorem</strong>.
+      That's why we use entanglement-based encoding instead of simple backups.
+    </div>
+    <div class="modal-body">
+      If you could copy a qubit, you could read multiple copies and beat the
+      Heisenberg uncertainty principle. Nature forbids this. Instead, quantum
+      error correction uses <strong>redundant entangled encoding</strong> — spreading
+      information across multiple qubits so errors can be detected without ever
+      measuring the data directly.
+    </div>
+    <div class="modal-actions">
+      <button class="modal-btn primary" onclick="closeModal('modal-noclone')">UNDERSTOOD</button>
+    </div>
+  </div>
+</div>
+
+<!-- Level Win Modal -->
+<div class="modal-overlay" id="modal-win">
+  <div class="modal-box">
+    <div class="modal-icon">✅</div>
+    <div class="modal-title green" id="win-title">Level Complete!</div>
+    <div class="modal-body" id="win-body">You successfully protected the logical qubit.</div>
+    <div class="modal-actions">
+      <button class="modal-btn primary" onclick="nextLevel()" id="win-next-btn">NEXT LEVEL ▶</button>
+      <button class="modal-btn secondary" onclick="restartLevel()">RETRY</button>
+    </div>
+  </div>
+</div>
+
+<!-- Level Fail Modal -->
+<div class="modal-overlay" id="modal-fail">
+  <div class="modal-box">
+    <div class="modal-icon">💥</div>
+    <div class="modal-title red">Logical State Lost</div>
+    <div class="modal-body" id="fail-body">Three uncorrected errors collapsed the logical qubit.</div>
+    <div class="modal-actions">
+      <button class="modal-btn primary" onclick="restartLevel()">RETRY LEVEL</button>
+      <button class="modal-btn secondary" onclick="goToSelect()">LEVEL SELECT</button>
+    </div>
+  </div>
+</div>
+
+<!-- Level 5 Fail Modal (special - code distance) -->
+<div class="modal-overlay" id="modal-level5">
+  <div class="modal-box special">
+    <div class="modal-icon">📐</div>
+    <div class="modal-title amber">Code Distance Exceeded</div>
+    <div class="distance-box">
+      Two simultaneous errors exceeded this code's distance. A distance-3 code
+      can only correct <strong>1 error</strong>. More physical qubits are needed.
+    </div>
+    <div class="modal-body">
+      The 3-qubit repetition code has <strong>code distance d=3</strong>. This means
+      it can detect up to 2 errors, but only <em>correct</em> 1. When two qubits
+      flip simultaneously, the syndrome pattern becomes ambiguous — any correction
+      makes things worse, not better.<br/><br/>
+      Real quantum computers use <strong>surface codes</strong> with hundreds of
+      physical qubits to protect a single logical qubit, achieving distance high
+      enough to correct multiple simultaneous errors.
+    </div>
+    <div class="modal-actions">
+      <button class="modal-btn amber" onclick="closeLevel5()">I UNDERSTAND CODE DISTANCE</button>
+    </div>
+  </div>
+</div>
+
+<!-- No-clone notification toast -->
+<div class="no-clone-notification" id="no-clone-toast">
+  🚫 Quantum states cannot be copied — no-cloning theorem.
+</div>
+
+<script>
+// ══════════════════════════════════════════════════════ STATE ══════
+
+const LEVELS = [
+  {
+    num: 1,
+    name: 'Bit-Flip Basics',
+    desc: 'Bit-flip errors only. Full hints. 12 second timer.',
+    errorType: 'bit',
+    timerDuration: 12000,
+    hints: true,
+    gateZ: false,
+    targetCorrections: 3,
+    winCondition: 'corrections',
+  },
+  {
+    num: 2,
+    name: 'No Safety Net',
+    desc: 'Bit-flip errors. 9 second timer. No hints — figure it out.',
+    errorType: 'bit',
+    timerDuration: 9000,
+    hints: false,
+    hideSyndromeText: true,   // hide plain-language interpretation
+    gateZ: false,
+    targetCorrections: 3,
+    winCondition: 'corrections',
+  },
+  {
+    num: 3,
+    name: 'Phase Interference',
+    desc: 'Phase-flip errors introduced. Z-gate correction required.',
+    errorType: 'phase',
+    timerDuration: 10000,
+    hints: false,
+    gateZ: true,
+    targetCorrections: 3,
+    winCondition: 'corrections',
+  },
+  {
+    num: 4,
+    name: 'Mixed Decoherence',
+    desc: 'Both error types. 7 second timer.',
+    errorType: 'mixed',
+    timerDuration: 7000,
+    hints: false,
+    gateZ: true,
+    targetCorrections: 5,
+    winCondition: 'corrections',
+  },
+  {
+    num: 5,
+    name: 'Code Distance',
+    desc: '⚠ Fix one error, then discover the limit of d=3 codes.',
+    errorType: 'double',
+    timerDuration: 6000,
+    hints: false,
+    gateZ: true,
+    targetCorrections: 999,
+    winCondition: 'never',
+    special: true,
+  },
+];
+
+let state = {
+  level: 0,          // index into LEVELS
+  logicalState: 0,   // 0 or 1
+  data: [0, 0, 0],   // actual values of data qubits (may differ from logical due to errors)
+  errors: [],        // array of {qubit: 0|1|2, type: 'bit'|'phase'} currently active
+  errorCount: 0,     // accumulated uncorrected errors this level
+  correctedCount: 0,
+  score: 0,
+  timerPct: 1.0,
+  timerInterval: null,
+  lastTimestamp: null,
+  selectedQubit: null,   // which data qubit tile is highlighted (0,1,2)
+  corrTarget: null,      // which data qubit selected in panel (0,1,2)
+  selectedGate: 'X',
+  running: false,
+  nocloneShown: false,
+  nocloneToastTimeout: null,
+  levelComplete: false,
+};
+
+// ═══════════════════════════════════════════ LEVEL SELECT ══════
+
+function buildLevelSelect() {
+  const grid = document.getElementById('level-grid');
+  const completed = JSON.parse(localStorage.getItem('qew-completed') || '[]');
+  grid.innerHTML = '';
+  LEVELS.forEach((lvl, i) => {
+    const unlocked = i === 0 || completed.includes(i - 1);
+    const done = completed.includes(i);
+    const card = document.createElement('div');
+    card.className = 'level-card' +
+      (lvl.special ? ' special' : '') +
+      (unlocked ? '' : ' locked');
+    card.innerHTML = `
+      <div class="level-num">LEVEL ${lvl.num}</div>
+      <div class="level-name">${lvl.name}</div>
+      <div class="level-desc">${lvl.desc}</div>
+      ${done ? '<div class="level-badge complete">✓</div>' : (!unlocked ? '<div class="level-badge locked-icon">🔒</div>' : '')}
+    `;
+    if (unlocked) card.addEventListener('click', () => startLevel(i));
+    grid.appendChild(card);
+  });
+}
+
+function goToSelect() {
+  stopTimer();
+  showScreen('screen-select');
+  buildLevelSelect();
+}
+
+// ═══════════════════════════════════════════ GAME INIT ══════
+
+function startLevel(levelIdx) {
+  const lvl = LEVELS[levelIdx];
+  state.level = levelIdx;
+  state.logicalState = Math.random() < 0.5 ? 0 : 1;
+  state.data = [state.logicalState, state.logicalState, state.logicalState];
+  state.errors = [];
+  state.errorCount = 0;
+  state.correctedCount = 0;
+  state.timerPct = 1.0;
+  state.selectedQubit = null;
+  state.corrTarget = null;
+  state.selectedGate = 'X';
+  state.running = true;
+  state.levelComplete = false;
+
+  document.getElementById('level-pill').textContent = 'LEVEL ' + lvl.num;
+  document.getElementById('logical-state-val').textContent = '|' + state.logicalState + '⟩';
+  document.getElementById('padlock-icon').textContent = '🔒';
+  document.getElementById('encoding-label').textContent = '3-QUBIT ' + (lvl.errorType === 'phase' ? 'PHASE-FLIP' : 'BIT-FLIP') + ' CODE';
+
+  // Gate visibility
+  const gateZ = document.getElementById('gate-Z');
+  gateZ.style.opacity = lvl.gateZ ? '1' : '0.3';
+  gateZ.style.pointerEvents = lvl.gateZ ? 'auto' : 'none';
+  selectGate('X');
+
+  // Hint
+  const hintBox = document.getElementById('hint-box');
+  if (lvl.hints) {
+    hintBox.classList.remove('hidden');
+    hintBox.textContent = '💡 Read the syndrome pattern in the right panel. ' +
+      (lvl.errorType === 'phase'
+        ? 'Phase errors require Z-gate correction. Purple syndrome = phase-flip detected.'
+        : 'A=1,B=0 → Data 1 error. A=1,B=1 → Data 2 error. A=0,B=1 → Data 3 error.');
+  } else {
+    hintBox.classList.add('hidden');
+  }
+
+  // Level info
+  const infoTexts = [
+    'Correct 3 bit-flip errors to win. Syndrome A = parity(D1⊕D2), Syndrome B = parity(D2⊕D3). The syndrome tells you WHERE without revealing WHAT.',
+    'No hints this time — you read the syndrome values yourself. Correct 3 errors to complete this level.',
+    'Phase errors flip the SIGN of a qubit, not its value. Use Z-gate to correct. The syndrome tiles turn purple for phase-flip detection. Correct 3 errors.',
+    'Both error types now active. Identify the error type from the syndrome color, then select the correct gate.',
+    '⚠ Two errors fired simultaneously. Fix one — then try the second.',
+  ];
+  document.getElementById('level-info-text').textContent = infoTexts[levelIdx];
+
+  updateDisplay();
+  showScreen('screen-game');
+  stopTimer();
+  // Show instructions popup — timer starts only after player dismisses it
+  showModal('modal-instructions');
+}
+
+function dismissInstructions() {
+  closeModal('modal-instructions');
+  startTimer();
+}
+
+// ═══════════════════════════════════════════ SYNDROME LOGIC ══════
+
+function computeSyndromes() {
+  const [d1, d2, d3] = state.data;
+  const errMap = getErrorMap();
+  // Syndromes check actual bit errors (not phase)
+  const bitErrors = state.errors.filter(e => e.type === 'bit');
+  const phaseErrors = state.errors.filter(e => e.type === 'phase');
+
+  // Bit-flip parity checks
+  const d1flipped = bitErrors.some(e => e.qubit === 0) ? 1 : 0;
+  const d2flipped = bitErrors.some(e => e.qubit === 1) ? 1 : 0;
+  const d3flipped = bitErrors.some(e => e.qubit === 2) ? 1 : 0;
+
+  const sA_bit = d1flipped ^ d2flipped;  // parity of D1 ⊕ D2
+  const sB_bit = d2flipped ^ d3flipped;  // parity of D2 ⊕ D3
+
+  // Phase-flip parity checks (conceptually different syndrome)
+  const d1phase = phaseErrors.some(e => e.qubit === 0) ? 1 : 0;
+  const d2phase = phaseErrors.some(e => e.qubit === 1) ? 1 : 0;
+  const d3phase = phaseErrors.some(e => e.qubit === 2) ? 1 : 0;
+
+  const sA_phase = d1phase ^ d2phase;
+  const sB_phase = d2phase ^ d3phase;
+
+  return {
+    sA_bit, sB_bit,
+    sA_phase, sB_phase,
+    sA: sA_bit || sA_phase,
+    sB: sB_bit || sB_phase,
+    hasBit: sA_bit || sB_bit,
+    hasPhase: sA_phase || sB_phase,
+  };
+}
+
+function interpretSyndrome(syn) {
+  const results = [];
+
+  // Bit-flip interpretation
+  if (syn.hasBit) {
+    const a = syn.sA_bit, b = syn.sB_bit;
+    if (a === 1 && b === 0) results.push({ text: 'Bit-flip on Data 1 detected', type: 'error' });
+    else if (a === 1 && b === 1) results.push({ text: 'Bit-flip on Data 2 detected', type: 'error' });
+    else if (a === 0 && b === 1) results.push({ text: 'Bit-flip on Data 3 detected', type: 'error' });
+    else if (a === 1 && b === 1) results.push({ text: 'Multiple bit errors — ambiguous!', type: 'error' });
+  }
+
+  // Phase-flip interpretation
+  if (syn.hasPhase) {
+    const a = syn.sA_phase, b = syn.sB_phase;
+    if (a === 1 && b === 0) results.push({ text: 'Phase-flip on Data 1 detected', type: 'phase' });
+    else if (a === 1 && b === 1) results.push({ text: 'Phase-flip on Data 2 detected', type: 'phase' });
+    else if (a === 0 && b === 1) results.push({ text: 'Phase-flip on Data 3 detected', type: 'phase' });
+  }
+
+  if (results.length === 0) return { text: 'No error detected — logical state is protected.', type: 'none' };
+  if (results.length === 1) return results[0];
+  return { text: results.map(r => r.text).join(' | '), type: 'error' };
+}
+
+function getErrorMap() {
+  return {
+    bit: state.errors.filter(e => e.type === 'bit').map(e => e.qubit),
+    phase: state.errors.filter(e => e.type === 'phase').map(e => e.qubit),
+  };
+}
+
+// ═══════════════════════════════════════════ DISPLAY UPDATE ══════
+
+function updateDisplay() {
+  const lvl = LEVELS[state.level];
+  const syn = computeSyndromes();
+  const errMap = getErrorMap();
+
+  // Data tiles
+  ['d1','d2','d3'].forEach((id, i) => {
+    const tile = document.getElementById('tile-' + id);
+    const val = document.getElementById(id + '-val');
+    const sub = document.getElementById(id + '-sub');
+    const icon = document.getElementById(id + '-icon');
+
+    const hasBit = errMap.bit.includes(i);
+    const hasPhase = errMap.phase.includes(i);
+
+    tile.className = 'qubit-tile data-tile';
+
+    if (hasBit) {
+      tile.classList.add('corrupted');
+      val.textContent = state.logicalState === 0 ? '1' : '0'; // flipped
+      sub.textContent = 'bit-flip!';
+      icon.textContent = '⚠';
+    } else if (hasPhase) {
+      tile.classList.add('phase-corrupted');
+      val.textContent = state.logicalState.toString();
+      sub.textContent = 'phase-flip!';
+      icon.textContent = '⊕';
+    } else {
+      tile.classList.add('clean');
+      val.textContent = state.logicalState.toString();
+      sub.textContent = 'stable';
+      icon.textContent = '⬡';
+    }
+
+    if (state.corrTarget === i) tile.classList.add('selected');
+    if (state.selectedQubit === i) tile.classList.add('selected');
+  });
+
+  // Syndrome tiles
+  const tileA = document.getElementById('tile-sA');
+  const tileB = document.getElementById('tile-sB');
+  const sAval = document.getElementById('sA-val');
+  const sBval = document.getElementById('sB-val');
+
+  tileA.className = 'qubit-tile syndrome-tile';
+  tileB.className = 'qubit-tile syndrome-tile';
+
+  const showSA = syn.sA_bit || syn.sA_phase;
+  const showSB = syn.sB_bit || syn.sB_phase;
+
+  if (syn.sA_phase && !syn.sA_bit) {
+    tileA.classList.add('phase-syndrome-1');
+    sAval.textContent = '1';
+  } else if (syn.sA_bit) {
+    tileA.classList.add('syndrome-1');
+    sAval.textContent = '1';
+  } else {
+    tileA.classList.add('syndrome-0');
+    sAval.textContent = '0';
+  }
+
+  if (syn.sB_phase && !syn.sB_bit) {
+    tileB.classList.add('phase-syndrome-1');
+    sBval.textContent = '1';
+  } else if (syn.sB_bit) {
+    tileB.classList.add('syndrome-1');
+    sBval.textContent = '1';
+  } else {
+    tileB.classList.add('syndrome-0');
+    sBval.textContent = '0';
+  }
+
+  // Panel syndrome values
+  const panelSA = document.getElementById('panel-sA');
+  const panelSB = document.getElementById('panel-sB');
+  panelSA.textContent = sAval.textContent;
+  panelSB.textContent = sBval.textContent;
+  panelSA.className = 'syndrome-val' + (showSA ? ' active' : '');
+  panelSB.className = 'syndrome-val' + (showSB ? ' active' : '');
+
+  // Interpretation — hidden on Level 2 so player must read syndrome values themselves
+  const interp = interpretSyndrome(syn);
+  const interpEl = document.getElementById('syndrome-interp');
+  const lvlCurrent = LEVELS[state.level];
+  if (lvlCurrent.hideSyndromeText) {
+    interpEl.textContent = '— read the syndrome values above —';
+    interpEl.className = 'syndrome-interpretation no-error';
+    interpEl.style.opacity = '0.35';
+  } else {
+    interpEl.style.opacity = '1';
+    interpEl.textContent = interp.text;
+    interpEl.className = 'syndrome-interpretation';
+    if (interp.type === 'none') interpEl.classList.add('no-error');
+    else if (interp.type === 'phase') interpEl.classList.add('phase-error');
+    else interpEl.classList.add('error');
+  }
+
+  // Correction target highlight
+  ['d1','d2','d3'].forEach((id, i) => {
+    const btn = document.getElementById('corr-' + id);
+    btn.className = 'corr-btn' + (state.corrTarget === i ? ' selected' : '');
+  });
+
+  // Encoding label
+  document.getElementById('state-encoding').textContent =
+    'Encoding: |' + state.data.map(d => d).join('') + '⟩';
+
+  // Stats
+  document.getElementById('error-count-display').textContent = state.errorCount + '/3';
+  const ecEl = document.getElementById('error-count-display');
+  ecEl.className = 'stat-value' + (state.errorCount >= 2 ? ' danger' : '');
+  document.getElementById('corrected-display').textContent = state.correctedCount;
+  document.getElementById('score-display').textContent = state.score;
+}
+
+// ═══════════════════════════════════════════ TIMER ══════
+
+function startTimer() {
+  state.lastTimestamp = performance.now();
+  state.timerInterval = requestAnimationFrame(timerTick);
+}
+
+function stopTimer() {
+  if (state.timerInterval) {
+    cancelAnimationFrame(state.timerInterval);
+    state.timerInterval = null;
+  }
+}
+
+function timerTick(ts) {
+  if (!state.running) return;
+  const lvl = LEVELS[state.level];
+  const elapsed = ts - state.lastTimestamp;
+  state.lastTimestamp = ts;
+  state.timerPct -= elapsed / lvl.timerDuration;
+
+  if (state.timerPct <= 0) {
+    state.timerPct = 1.0;
+    fireNoiseEvent();
+  }
+
+  updateTimerBar();
+  state.timerInterval = requestAnimationFrame(timerTick);
+}
+
+function updateTimerBar() {
+  const fill = document.getElementById('timer-bar-fill');
+  const pct = Math.max(0, state.timerPct) * 100;
+  fill.style.width = pct + '%';
+
+  const lvl = LEVELS[state.level];
+  const remaining = (state.timerPct * lvl.timerDuration / 1000).toFixed(1);
+  document.getElementById('timer-countdown').textContent = remaining + 's';
+
+  if (state.timerPct <= 0.2) {
+    fill.classList.add('warning');
+  } else {
+    fill.classList.remove('warning');
+  }
+}
+
+// ═══════════════════════════════════════════ NOISE EVENTS ══════
+
+function fireNoiseEvent() {
+  const lvl = LEVELS[state.level];
+  if (!state.running) return;
+
+  if (lvl.errorType === 'double') {
+    // Level 5: fire two simultaneous errors — let player fix ONE, then show code distance on second attempt
+    const targets = [0, 1, 2].sort(() => Math.random() - 0.5);
+    state.errors = [
+      { qubit: targets[0], type: 'bit' },
+      { qubit: targets[1], type: 'bit' },
+    ];
+    state.errorCount = state.errors.length;
+    showFeedback('⚡ TWO-QUBIT ERROR!', 'error-event');
+    updateDisplay();
+    // Do NOT auto-fail — wait for player interaction (applyCorrection handles it)
+    return;
+
+  } else {
+    // Only corrupt a qubit that is currently CLEAN
+    const cleanQubits = [0, 1, 2].filter(q => !state.errors.some(e => e.qubit === q));
+
+    if (cleanQubits.length === 0) {
+      // All 3 already have active errors — game over
+      state.errorCount = state.errors.length;
+      updateDisplay();
+      if (state.errors.length >= 3) setTimeout(triggerFail, 500);
+      return;
+    }
+
+    // Level 3 (index 2): only 1 active error at a time — skip if one already exists
+    if (state.level === 2 && state.errors.length >= 1) {
+      updateDisplay();
+      return;
+    }
+
+    const q = cleanQubits[Math.floor(Math.random() * cleanQubits.length)];
+    let type = 'bit';
+    if (lvl.errorType === 'phase') type = 'phase';
+    else if (lvl.errorType === 'mixed') type = Math.random() < 0.5 ? 'bit' : 'phase';
+
+    state.errors.push({ qubit: q, type });
+    state.errorCount = state.errors.length;
+
+    // Levels 2 (index 1) and 4 (index 3): hide which qubit was hit — generic flash only
+    if (state.level === 1 || state.level === 3) {
+      showFeedback('⚡ DECOHERENCE EVENT!', 'error-event');
+    } else {
+      showFeedback('⚡ ' + (type === 'phase' ? 'PHASE' : 'BIT') + '-FLIP ON DATA ' + (q + 1) + '!', 'error-event');
+    }
+    updateDisplay();
+
+    if (state.errorCount >= 3) {
+      setTimeout(triggerFail, 1200);
+    }
+  }
+}
+
+// ═══════════════════════════════════════════ PLAYER ACTIONS ══════
+
+function selectQubit(idx) {
+  state.selectedQubit = idx;
+  state.corrTarget = idx;
+  updateDisplay();
+}
+
+function selectCorrTarget(idx) {
+  state.corrTarget = idx;
+  state.selectedQubit = idx;
+  updateDisplay();
+}
+
+function selectGate(gate) {
+  state.selectedGate = gate;
+  document.getElementById('gate-X').className = 'gate-btn' + (gate === 'X' ? ' active' : '');
+  document.getElementById('gate-Z').className = 'gate-btn' + (gate === 'Z' ? ' active' : '');
+}
+
+function applyCorrection() {
+  if (state.corrTarget === null) {
+    showFeedback('Select a qubit first!', 'wrong');
+    return;
+  }
+  if (!state.running) return;
+
+  const q = state.corrTarget;
+  const gate = state.selectedGate;
+  const lvl = LEVELS[state.level];
+  const errIdx = state.errors.findIndex(e => e.qubit === q && e.type === (gate === 'X' ? 'bit' : 'phase'));
+
+  if (errIdx >= 0) {
+    // ── Correct fix ──
+    state.errors.splice(errIdx, 1);
+    state.errorCount = state.errors.length;
+    state.correctedCount++;
+    state.score += 100 + (state.level * 25);
+    showFeedback('✓ CORRECTED!', 'correct');
+
+    // Level 5: first fix is allowed. Second attempt → show code distance modal.
+    if (lvl.winCondition === 'never') {
+      if (state.correctedCount >= 1 && state.errors.length > 0) {
+        // There is still another error remaining — trigger the code distance reveal
+        state.running = false;
+        stopTimer();
+        setTimeout(() => showModal('modal-level5'), 700);
+        state.corrTarget = null;
+        state.selectedQubit = null;
+        updateDisplay();
+        return;
+      }
+      // If somehow they fixed the only remaining error (edge case), just fire new errors
+    }
+
+    // Reset timer to full so next iteration starts fresh immediately
+    state.timerPct = 1.0;
+    updateTimerBar();
+
+    // Check win condition
+    if (state.correctedCount >= lvl.targetCorrections) {
+      setTimeout(triggerWin, 600);
+      return;
+    }
+
+    // Fire next noise event immediately after a short celebrate pause
+    setTimeout(() => {
+      if (state.running) fireNoiseEvent();
+    }, 800);
+
+  } else {
+    // ── Wrong correction ──
+    const hasBit = state.errors.some(e => e.qubit === q && e.type === 'bit');
+    const hasPhase = state.errors.some(e => e.qubit === q && e.type === 'phase');
+    const isClean = !hasBit && !hasPhase;
+
+    if (isClean) {
+      state.errors.push({ qubit: q, type: gate === 'X' ? 'bit' : 'phase' });
+      showFeedback('✗ WRONG QUBIT — error introduced!', 'wrong');
+    } else {
+      showFeedback('✗ WRONG GATE TYPE!', 'wrong');
+    }
+
+    state.errorCount = state.errors.length;
+
+    if (state.errorCount >= 3) {
+      setTimeout(triggerFail, 1200);
+      return;
+    }
+  }
+
+  state.corrTarget = null;
+  state.selectedQubit = null;
+  updateDisplay();
+}
+
+function attemptClone() {
+  if (!state.nocloneShown) {
+    state.nocloneShown = true;
+    showModal('modal-noclone');
+  } else {
+    // Silent block with brief toast
+    showNoCloneToast();
+  }
+}
+
+function showNoCloneToast() {
+  const toast = document.getElementById('no-clone-toast');
+  toast.classList.add('show');
+  clearTimeout(state.nocloneToastTimeout);
+  state.nocloneToastTimeout = setTimeout(() => toast.classList.remove('show'), 2500);
+}
+
+// ═══════════════════════════════════════════ WIN / FAIL ══════
+
+function triggerWin() {
+  if (!state.running) return;
+  state.running = false;
+  stopTimer();
+
+  const completed = JSON.parse(localStorage.getItem('qew-completed') || '[]');
+  if (!completed.includes(state.level)) {
+    completed.push(state.level);
+    localStorage.setItem('qew-completed', JSON.stringify(completed));
+  }
+
+  const lvl = LEVELS[state.level];
+  document.getElementById('win-title').textContent = 'Level ' + lvl.num + ' Complete!';
+  document.getElementById('win-body').innerHTML =
+    'You protected the logical qubit <strong>' + state.correctedCount + ' times</strong>. ' +
+    'Score: <strong>' + state.score + '</strong>.<br/><br/>' +
+    (state.level === 2
+      ? 'Key insight: The syndrome pattern told you WHICH qubit failed, not WHAT value it held. The data was never directly measured.'
+      : state.level === 3
+      ? 'Phase-flip errors and bit-flip errors require different correction gates. They are distinct types of quantum noise.'
+      : state.level === 4
+      ? 'You handled both error types. Real quantum computers deal with both simultaneously.'
+      : 'Syndrome measurement is powerful: indirect error detection without data collapse.');
+
+  const nextBtn = document.getElementById('win-next-btn');
+  if (state.level >= LEVELS.length - 1) {
+    nextBtn.textContent = 'ALL LEVELS COMPLETE ✓';
+    nextBtn.onclick = goToSelect;
+  } else {
+    nextBtn.textContent = 'NEXT LEVEL ▶';
+    nextBtn.onclick = nextLevel;
+  }
+
+  showModal('modal-win');
+}
+
+function triggerFail() {
+  if (!state.running) return;
+  state.running = false;
+  stopTimer();
+  document.getElementById('padlock-icon').textContent = '🔓';
+  document.getElementById('fail-body').textContent =
+    'Three uncorrected errors collapsed the logical qubit. The ' +
+    (state.data[0] === 0 ? '|0⟩' : '|1⟩') + ' state was lost.';
+  showModal('modal-fail');
+}
+
+function triggerLevel5Fail() {
+  if (!state.running) return;
+  state.running = false;
+  stopTimer();
+  document.getElementById('padlock-icon').textContent = '🔓';
+  showModal('modal-level5');
+}
+
+function nextLevel() {
+  closeAllModals();
+  if (state.level + 1 < LEVELS.length) {
+    startLevel(state.level + 1);
+  } else {
+    goToSelect();
+  }
+}
+
+function restartLevel() {
+  closeAllModals();
+  startLevel(state.level);
+}
+
+function closeLevel5() {
+  closeModal('modal-level5');
+  goToSelect();
+}
+
+// ═══════════════════════════════════════════ FEEDBACK ══════
+
+function showFeedback(text, type) {
+  const el = document.getElementById('feedback-flash');
+  el.textContent = text;
+  el.className = 'feedback-flash show ' + type;
+  setTimeout(() => el.classList.remove('show'), 1500);
+}
+
+// ═══════════════════════════════════════════ MODAL HELPERS ══════
+
+function showModal(id) {
+  document.getElementById(id).classList.add('active');
+}
+function closeModal(id) {
+  document.getElementById(id).classList.remove('active');
+}
+function closeAllModals() {
+  document.querySelectorAll('.modal-overlay').forEach(m => m.classList.remove('active'));
+}
+
+// ═══════════════════════════════════════════ SCREEN HELPERS ══════
+
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+// ═══════════════════════════════════════════ INIT ══════
+
+buildLevelSelect();
+
+// Allow clicking outside modal to close noclone modal
+document.getElementById('modal-noclone').addEventListener('click', function(e) {
+  if (e.target === this) closeModal('modal-noclone');
+});
+</script>
+</body>
+</html>
