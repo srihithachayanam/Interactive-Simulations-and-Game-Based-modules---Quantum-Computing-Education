@@ -1,0 +1,1214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Station 03 — Quantum Circuit Builder | Quantum Research Lab</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #04060d;
+    --panel: #0f1628;
+    --panel2: #111c35;
+    --border: #1a2540;
+    --cyan: #00e5ff;
+    --cyan-dim: rgba(0,229,255,0.12);
+    --cyan-glow: rgba(0,229,255,0.4);
+    --amber: #f59e0b;
+    --amber-dim: rgba(245,158,11,0.12);
+    --green: #10b981;
+    --green-dim: rgba(16,185,129,0.15);
+    --red: #ef4444;
+    --purple: #a855f7;
+    --text: #c8d8f0;
+    --text-dim: #5a7099;
+    --text-bright: #e8f0ff;
+  }
+  html, body { height: 100%; background: var(--bg); color: var(--text); font-family: 'Space Mono', monospace; overflow-x: hidden; }
+  .screen { display: none; min-height: 100vh; flex-direction: column; }
+  .screen.active { display: flex; }
+  body::before {
+    content: ''; position: fixed; inset: 0;
+    background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.03) 2px, rgba(0,0,0,0.03) 4px);
+    pointer-events: none; z-index: 9999;
+  }
+
+  /* ═══ LEVEL SELECT ═══ */
+  #screen-select {
+    align-items: center; justify-content: center; padding: 40px 20px;
+    background: radial-gradient(ellipse at 50% 0%, rgba(0,229,255,0.05) 0%, transparent 60%);
+  }
+  .select-header { text-align: center; margin-bottom: 40px; }
+  .station-label { font-size: 11px; letter-spacing: 4px; color: var(--cyan); text-transform: uppercase; margin-bottom: 12px; opacity: 0.8; }
+  .select-title { font-family: 'Syne', sans-serif; font-size: clamp(24px, 4vw, 44px); font-weight: 800; color: var(--text-bright); line-height: 1.1; margin-bottom: 12px; }
+  .select-subtitle { font-size: 11px; color: var(--text-dim); line-height: 1.8; max-width: 540px; margin: 0 auto; }
+
+  .tier-section { width: 100%; max-width: 1060px; margin-bottom: 28px; }
+  .tier-header { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+  .tier-title { font-family: 'Syne', sans-serif; font-size: 14px; font-weight: 700; color: var(--text-bright); }
+  .tier-desc { font-size: 10px; color: var(--text-dim); }
+  .tier-line { flex: 1; height: 1px; background: var(--border); }
+
+  .levels-row { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; }
+  .level-card {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 6px;
+    padding: 14px 12px; cursor: pointer; transition: all 0.2s; position: relative; overflow: hidden;
+  }
+  .level-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: var(--cyan); transform: scaleX(0); transition: transform 0.2s; transform-origin: left; }
+  .level-card:hover { border-color: var(--cyan); transform: translateY(-2px); }
+  .level-card:hover::before { transform: scaleX(1); }
+  .level-card.locked { opacity: 0.35; cursor: not-allowed; pointer-events: none; }
+  .level-card.completed::before { transform: scaleX(1); background: var(--green); }
+  .level-card.completed { border-color: rgba(16,185,129,0.3); }
+  .lc-num { font-size: 9px; letter-spacing: 3px; color: var(--cyan); margin-bottom: 6px; }
+  .level-card.completed .lc-num { color: var(--green); }
+  .lc-name { font-family: 'Syne', sans-serif; font-size: 12px; font-weight: 700; color: var(--text-bright); margin-bottom: 4px; line-height: 1.3; }
+  .lc-desc { font-size: 9px; color: var(--text-dim); line-height: 1.6; }
+
+  .back-lab-btn { display: inline-flex; align-items: center; gap: 8px; font-family: 'Space Mono', monospace; font-size: 11px; letter-spacing: 2px; color: var(--text-dim); background: none; border: 1px solid var(--border); padding: 10px 20px; border-radius: 4px; cursor: pointer; transition: all 0.2s; margin-top: 16px; }
+  .back-lab-btn:hover { color: var(--cyan); border-color: var(--cyan); }
+
+  /* ═══ GAME SCREEN ═══ */
+  #screen-game { flex-direction: column; height: 100vh; overflow: hidden; }
+
+  /* TOP BAR */
+  .top-bar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 20px; background: var(--panel); border-bottom: 1px solid var(--border);
+    flex-shrink: 0; gap: 12px; flex-wrap: wrap;
+  }
+  .tb-left { display: flex; align-items: center; gap: 12px; }
+  .tb-station { font-size: 9px; letter-spacing: 3px; color: var(--cyan); opacity: 0.8; }
+  .tb-title { font-family: 'Syne', sans-serif; font-size: 13px; font-weight: 700; color: var(--text-bright); }
+  .tb-level { font-size: 9px; letter-spacing: 2px; color: var(--text-dim); background: var(--panel2); border: 1px solid var(--border); padding: 5px 10px; border-radius: 3px; }
+  .tb-level span { color: var(--cyan); }
+  .tb-right { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+  .tb-btn {
+    font-family: 'Space Mono', monospace; font-size: 10px; letter-spacing: 1.5px;
+    padding: 7px 14px; border-radius: 3px; cursor: pointer; transition: all 0.15s; border: 1px solid;
+  }
+  .tb-btn-run { background: var(--cyan-dim); color: var(--cyan); border-color: var(--cyan); }
+  .tb-btn-run:hover { background: rgba(0,229,255,0.22); box-shadow: 0 0 16px var(--cyan-glow); }
+  .tb-btn-run:disabled { opacity: 0.35; cursor: not-allowed; }
+  .tb-btn-reset { background: none; color: var(--text-dim); border-color: var(--border); }
+  .tb-btn-reset:hover { color: var(--red); border-color: var(--red); }
+  .tb-btn-nav { background: none; color: var(--text-dim); border-color: var(--border); }
+  .tb-btn-nav:hover { color: var(--cyan); border-color: var(--cyan); }
+
+  .step-counter { font-size: 10px; color: var(--text-dim); padding: 5px 10px; background: var(--panel2); border: 1px solid var(--border); border-radius: 3px; }
+  .step-counter span { color: var(--amber); }
+
+  /* MAIN LAYOUT */
+  .game-body { display: grid; grid-template-columns: 180px 1fr 220px; flex: 1; overflow: hidden; }
+  .sidebar { background: var(--panel); border-right: 1px solid var(--border); padding: 16px 12px; display: flex; flex-direction: column; gap: 12px; overflow-y: auto; }
+  .sidebar.right { border-right: none; border-left: 1px solid var(--border); }
+  .center-panel { display: flex; flex-direction: column; padding: 20px; overflow-y: auto; background: radial-gradient(ellipse at 50% 30%, rgba(0,229,255,0.02) 0%, transparent 70%); }
+
+  /* GATE TOOLBOX */
+  .toolbox-title { font-size: 9px; letter-spacing: 3px; color: var(--text-dim); margin-bottom: 8px; }
+  .gate-tile {
+    background: var(--panel2); border: 1px solid var(--border); border-radius: 5px;
+    padding: 10px; cursor: grab; transition: all 0.15s; user-select: none;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .gate-tile:hover { border-color: var(--cyan); background: rgba(0,229,255,0.06); }
+  .gate-tile.dragging { opacity: 0.4; }
+  .gate-tile.locked { opacity: 0.3; cursor: not-allowed; filter: grayscale(1); }
+  .gate-symbol {
+    width: 32px; height: 32px; border-radius: 4px; display: flex; align-items: center; justify-content: center;
+    font-family: 'Syne', sans-serif; font-size: 14px; font-weight: 800; flex-shrink: 0; border: 2px solid;
+  }
+  .gs-x { background: rgba(0,229,255,0.1); border-color: var(--cyan); color: var(--cyan); }
+  .gs-h { background: rgba(168,85,247,0.12); border-color: var(--purple); color: var(--purple); }
+  .gs-z { background: rgba(245,158,11,0.1); border-color: var(--amber); color: var(--amber); }
+  .gs-y { background: rgba(239,68,68,0.1); border-color: var(--red); color: var(--red); }
+  .gs-s { background: rgba(16,185,129,0.1); border-color: var(--green); color: var(--green); }
+  .gs-t { background: rgba(0,229,255,0.06); border-color: rgba(0,229,255,0.4); color: rgba(0,229,255,0.6); }
+  .gs-cnot { background: rgba(168,85,247,0.1); border-color: var(--purple); color: var(--purple); font-size: 10px; }
+  .gate-info { flex: 1; min-width: 0; }
+  .gate-name { font-size: 10px; font-weight: 700; color: var(--text-bright); }
+  .gate-desc { font-size: 8px; color: var(--text-dim); line-height: 1.5; margin-top: 2px; }
+
+  /* CIRCUIT CANVAS AREA */
+  .circuit-area { flex: 1; min-height: 0; }
+  .circuit-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+  .circuit-label { font-size: 9px; letter-spacing: 3px; color: var(--text-dim); }
+  .puzzle-desc { font-size: 11px; color: var(--text); line-height: 1.7; margin-bottom: 16px; background: var(--panel2); border: 1px solid var(--border); border-radius: 5px; padding: 12px 14px; }
+  .puzzle-desc strong { color: var(--cyan); }
+
+  .qubit-row {
+    display: flex; align-items: center; gap: 0; margin-bottom: 12px; position: relative;
+  }
+  .qubit-label { width: 60px; flex-shrink: 0; }
+  .qubit-label-inner { font-size: 11px; color: var(--text-dim); text-align: center; }
+
+  .state-bubble {
+    width: 48px; height: 48px; border-radius: 50%; border: 2px solid;
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    font-size: 10px; font-weight: 700; transition: all 0.3s; position: relative;
+  }
+  .sb-zero { border-color: var(--cyan); background: rgba(0,229,255,0.08); color: var(--cyan); }
+  .sb-one { border-color: var(--cyan); background: var(--cyan); color: var(--bg); }
+  .sb-super { border-color: var(--purple); background: rgba(168,85,247,0.15); color: var(--purple); }
+  .sb-phase { border-color: var(--amber); background: rgba(245,158,11,0.12); color: var(--amber); }
+
+  .wire-container {
+    flex: 1; height: 48px; position: relative; display: flex; align-items: center;
+  }
+  .wire-line {
+    position: absolute; top: 50%; left: 0; right: 0; height: 1px;
+    background: var(--border); transform: translateY(-50%);
+  }
+  .wire-slots {
+    display: flex; align-items: center; gap: 6px; padding: 0 8px;
+    position: relative; z-index: 1; flex: 1; min-height: 48px;
+  }
+
+  /* GATE SLOTS */
+  .gate-slot {
+    width: 48px; height: 44px; border-radius: 5px; border: 1px dashed rgba(26,37,64,0.8);
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.15s; flex-shrink: 0; position: relative; cursor: pointer;
+    background: rgba(15,22,40,0.5);
+  }
+  .gate-slot.drag-over { border-color: var(--cyan); background: var(--cyan-dim); }
+  .gate-slot.has-gate { border-color: transparent; cursor: pointer; }
+  .gate-slot:hover .remove-gate { opacity: 1; }
+
+  /* PLACED GATES */
+  .placed-gate {
+    width: 44px; height: 40px; border-radius: 5px; border: 2px solid;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    font-family: 'Syne', sans-serif; font-size: 13px; font-weight: 800;
+    cursor: pointer; position: relative; user-select: none;
+    transition: all 0.15s;
+  }
+  .placed-gate:hover { filter: brightness(1.2); }
+  .remove-gate {
+    position: absolute; top: -6px; right: -6px; width: 14px; height: 14px;
+    background: var(--red); border-radius: 50%; font-size: 8px; color: white;
+    display: flex; align-items: center; justify-content: center; opacity: 0;
+    transition: opacity 0.15s; z-index: 10; cursor: pointer;
+    border: 1px solid var(--bg);
+  }
+
+  /* CNOT visual connector */
+  .cnot-connector {
+    position: absolute; left: 50%; width: 2px; background: var(--purple);
+    transform: translateX(-50%); z-index: 0; pointer-events: none;
+  }
+
+  /* CURSOR marker during run */
+  .run-cursor {
+    position: absolute; top: 0; bottom: 0; width: 3px;
+    background: rgba(0,229,255,0.6); border-radius: 2px;
+    box-shadow: 0 0 12px var(--cyan-glow);
+    transition: left 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 20; display: none;
+  }
+
+  /* TARGET STATE */
+  .target-row { display: flex; align-items: center; gap: 12px; margin-top: 8px; }
+  .target-label-t { font-size: 9px; letter-spacing: 2px; color: var(--green); opacity: 0.8; }
+  .target-state-display { display: flex; align-items: center; gap: 8px; }
+  .target-bubble {
+    width: 44px; height: 44px; border-radius: 50%; border: 2px solid var(--green);
+    background: var(--green-dim); display: flex; align-items: center; justify-content: center;
+    font-size: 10px; font-weight: 700; color: var(--green);
+  }
+  .vs-arrow { color: var(--text-dim); font-size: 12px; }
+  .match-indicator { font-size: 10px; letter-spacing: 1px; padding: 4px 10px; border-radius: 3px; }
+  .match-yes { background: var(--green-dim); color: var(--green); border: 1px solid rgba(16,185,129,0.3); }
+  .match-no { background: rgba(239,68,68,0.1); color: var(--red); border: 1px solid rgba(239,68,68,0.3); }
+
+  /* 2-QUBIT PROBABILITY GRID */
+  .prob-grid-2q { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; margin-top: 8px; }
+  .pg-cell { background: var(--panel2); border: 1px solid var(--border); border-radius: 4px; padding: 6px; text-align: center; }
+  .pg-label { font-size: 9px; color: var(--text-dim); margin-bottom: 3px; }
+  .pg-val { font-size: 13px; font-weight: 700; color: var(--cyan); }
+  .pg-cell.high { border-color: var(--cyan); background: var(--cyan-dim); }
+  .pg-cell.high .pg-val { color: var(--cyan); }
+
+  /* RIGHT SIDEBAR — STATE INSPECTOR */
+  .widget { background: var(--panel2); border: 1px solid var(--border); border-radius: 5px; padding: 12px; }
+  .widget-label { font-size: 9px; letter-spacing: 3px; color: var(--text-dim); margin-bottom: 10px; }
+
+  .prob-bar-wrap { display: flex; flex-direction: column; gap: 6px; }
+  .prob-bar-row { display: flex; align-items: center; gap: 8px; }
+  .pb-label { font-size: 10px; color: var(--text-dim); width: 32px; flex-shrink: 0; }
+  .pb-track { flex: 1; height: 8px; background: rgba(255,255,255,0.04); border-radius: 3px; overflow: hidden; border: 1px solid var(--border); }
+  .pb-fill { height: 100%; border-radius: 3px; transition: width 0.4s ease; background: linear-gradient(90deg, rgba(0,229,255,0.4), var(--cyan)); }
+  .pb-pct { font-size: 10px; color: var(--cyan); width: 36px; text-align: right; flex-shrink: 0; }
+
+  .gate-explain { font-size: 10px; color: var(--text-dim); line-height: 1.7; }
+  .gate-explain strong { color: var(--text-bright); }
+
+  .why-btn {
+    width: 100%; font-family: 'Space Mono', monospace; font-size: 9px; letter-spacing: 1px;
+    background: none; border: 1px solid var(--border); color: var(--text-dim);
+    padding: 8px; border-radius: 3px; cursor: pointer; transition: all 0.2s; margin-top: 8px;
+  }
+  .why-btn:hover { border-color: var(--cyan); color: var(--cyan); }
+
+  /* OVERLAY */
+  .overlay { display: none; position: fixed; inset: 0; background: rgba(4,6,13,0.92); z-index: 1000; align-items: center; justify-content: center; backdrop-filter: blur(4px); }
+  .overlay.active { display: flex; }
+  .result-card { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 44px 52px; text-align: center; max-width: 440px; width: 90%; position: relative; overflow: hidden; }
+  .result-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; }
+  .result-card.win::before { background: var(--green); }
+  .result-card.lose::before { background: var(--red); }
+  .result-icon { font-size: 44px; margin-bottom: 14px; }
+  .result-title { font-family: 'Syne', sans-serif; font-size: 26px; font-weight: 800; margin-bottom: 8px; }
+  .result-card.win .result-title { color: var(--green); }
+  .result-card.lose .result-title { color: var(--red); }
+  .result-msg { font-size: 11px; color: var(--text-dim); line-height: 1.8; margin-bottom: 28px; }
+  .result-actions { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+  .res-btn { font-family: 'Space Mono', monospace; font-size: 10px; letter-spacing: 2px; padding: 10px 22px; border-radius: 4px; cursor: pointer; transition: all 0.2s; border: 1px solid; }
+  .res-btn-primary { background: var(--cyan-dim); color: var(--cyan); border-color: var(--cyan); }
+  .res-btn-primary:hover { background: rgba(0,229,255,0.22); }
+  .res-btn-secondary { background: none; color: var(--text-dim); border-color: var(--border); }
+  .res-btn-secondary:hover { color: var(--text); border-color: var(--text-dim); }
+
+  @media (max-width: 900px) {
+    .game-body { grid-template-columns: 1fr; }
+    #screen-game { height: auto; overflow: auto; }
+    .sidebar, .sidebar.right { border-right: none; border-left: none; border-bottom: 1px solid var(--border); }
+    .levels-row { grid-template-columns: repeat(3, 1fr); }
+  }
+</style>
+</head>
+<body>
+
+<!-- ═══ LEVEL SELECT ═══ -->
+<div id="screen-select" class="screen active">
+  <div class="select-header">
+    <div class="station-label">STATION 03 · QUANTUM RESEARCH LAB</div>
+    <h1 class="select-title">Quantum Circuit Builder</h1>
+    <p class="select-subtitle">
+      Drag quantum gates onto qubit wires to transform quantum states.
+      No mathematics — just logic, intuition, and the strange beauty of superposition.
+    </p>
+  </div>
+  <div id="tier-container" style="width:100%;max-width:1060px;"></div>
+  <button class="back-lab-btn" onclick="goToLab()">← BACK TO LAB</button>
+</div>
+
+<!-- ═══ GAME SCREEN ═══ -->
+<div id="screen-game" class="screen">
+  <div class="top-bar">
+    <div class="tb-left">
+      <span class="tb-station">STA-03</span>
+      <span class="tb-title">Circuit Builder</span>
+      <span class="tb-level">LEVEL <span id="nav-level-num">1</span> — <span id="nav-level-name">—</span></span>
+    </div>
+    <div class="tb-right">
+      <span class="step-counter" id="step-counter">STEP <span>—</span></span>
+      <button class="tb-btn tb-btn-run" id="run-btn" onclick="runCircuit()">▶ RUN CIRCUIT</button>
+      <button class="tb-btn tb-btn-reset" onclick="resetCircuit()">RESET</button>
+      <button class="tb-btn tb-btn-nav" onclick="showSelect()">LEVELS</button>
+      <button class="tb-btn tb-btn-nav" onclick="goToLab()">← LAB</button>
+    </div>
+  </div>
+
+  <div class="game-body">
+
+    <!-- GATE TOOLBOX -->
+    <div class="sidebar" id="gate-toolbox">
+      <div class="toolbox-title">GATE TOOLBOX</div>
+      <div id="toolbox-gates"></div>
+    </div>
+
+    <!-- CENTER — CIRCUIT BUILDER -->
+    <div class="center-panel" id="center-panel">
+      <div class="puzzle-desc" id="puzzle-desc"></div>
+
+      <div style="position:relative;" id="circuit-wrapper">
+        <!-- Qubit rows injected here -->
+        <div id="qubit-rows"></div>
+        <!-- Run cursor overlay -->
+        <div class="run-cursor" id="run-cursor"></div>
+      </div>
+
+      <!-- Target / Output -->
+      <div style="margin-top: 16px;">
+        <div style="font-size:9px;letter-spacing:3px;color:var(--text-dim);margin-bottom:10px;">OUTPUT vs TARGET</div>
+        <div id="state-compare"></div>
+      </div>
+
+      <!-- 2Q prob grid (shown for tier 3) -->
+      <div id="prob-grid-2q-wrap" style="display:none; margin-top:12px;">
+        <div style="font-size:9px;letter-spacing:3px;color:var(--text-dim);margin-bottom:8px;">TWO-QUBIT PROBABILITY</div>
+        <div class="prob-grid-2q" id="prob-grid-2q"></div>
+      </div>
+    </div>
+
+    <!-- RIGHT SIDEBAR — STATE INSPECTOR -->
+    <div class="sidebar right">
+      <div class="widget">
+        <div class="widget-label">STATE INSPECTOR</div>
+        <div id="inspector-content">
+          <div style="font-size:10px;color:var(--text-dim);">Run the circuit to inspect qubit states step by step.</div>
+        </div>
+      </div>
+      <div class="widget" style="flex:1;">
+        <div class="widget-label">GATE EXPLANATION</div>
+        <div class="gate-explain" id="gate-explain">Drag a gate from the toolbox and click it to learn what it does.</div>
+        <button class="why-btn" id="why-btn" onclick="showWhyExplain()">WHY DID THIS GATE DO THAT?</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- RESULT OVERLAY -->
+<div class="overlay" id="result-overlay">
+  <div class="result-card" id="result-card">
+    <div class="result-icon" id="result-icon">◎</div>
+    <div class="result-title" id="result-title">CIRCUIT SOLVED</div>
+    <div class="result-msg" id="result-msg"></div>
+    <div class="result-actions">
+      <button class="res-btn res-btn-primary" id="res-next-btn" onclick="nextLevel()">NEXT LEVEL →</button>
+      <button class="res-btn res-btn-secondary" onclick="resetCircuit()">TRY AGAIN</button>
+      <button class="res-btn res-btn-secondary" onclick="showSelect()">ALL LEVELS</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+//  QUANTUM MATH ENGINE
+// ═══════════════════════════════════════════════════════════════
+
+// Complex number helpers
+function c(re, im=0) { return {re, im}; }
+function cadd(a, b) { return c(a.re+b.re, a.im+b.im); }
+function cmul(a, b) { return c(a.re*b.re - a.im*b.im, a.re*b.im + a.im*b.re); }
+function cabs2(a) { return a.re*a.re + a.im*a.im; }
+function cscale(a, s) { return c(a.re*s, a.im*s); }
+const inv_sqrt2 = 1/Math.sqrt(2);
+
+// Single-qubit gate matrices
+const GATES_MATH = {
+  X: [[c(0), c(1)], [c(1), c(0)]],
+  H: [[c(inv_sqrt2), c(inv_sqrt2)], [c(inv_sqrt2), c(-inv_sqrt2)]],
+  Z: [[c(1), c(0)], [c(0), c(-1)]],
+  Y: [[c(0), c(0,-1)], [c(0,1), c(0)]],
+  S: [[c(1), c(0)], [c(0), c(0,1)]],
+  T: [[c(1), c(0)], [c(0), c(Math.cos(Math.PI/4), Math.sin(Math.PI/4))]]
+};
+
+// Apply 2x2 gate to a 2-element state vector
+function applyGate1q(gate, sv) {
+  const [a, b] = sv;
+  const [[m00, m01], [m10, m11]] = gate;
+  return [
+    cadd(cmul(m00, a), cmul(m01, b)),
+    cadd(cmul(m10, a), cmul(m11, b))
+  ];
+}
+
+// Single qubit state: [c0, c1] where |ψ⟩ = c0|0⟩ + c1|1⟩
+function zeroState() { return [c(1), c(0)]; }
+function oneState() { return [c(0), c(1)]; }
+function plusState() { return [c(inv_sqrt2), c(inv_sqrt2)]; }
+function minusState() { return [c(inv_sqrt2), c(-inv_sqrt2)]; }
+
+// 2-qubit state: [c00, c01, c10, c11] for |00⟩,|01⟩,|10⟩,|11⟩
+function twoQubitZero() { return [c(1), c(0), c(0), c(0)]; }
+
+// Apply single-qubit gate to qubit 0 of a 2-qubit system
+function applyGate2q_q0(gate, sv4) {
+  const [[m00,m01],[m10,m11]] = gate;
+  // |0x⟩ → |0x⟩ affected by top qubit
+  return [
+    cadd(cmul(m00, sv4[0]), cmul(m01, sv4[2])),  // |00⟩
+    cadd(cmul(m00, sv4[1]), cmul(m01, sv4[3])),  // |01⟩
+    cadd(cmul(m10, sv4[0]), cmul(m11, sv4[2])),  // |10⟩
+    cadd(cmul(m10, sv4[1]), cmul(m11, sv4[3]))   // |11⟩
+  ];
+}
+
+// Apply single-qubit gate to qubit 1 of a 2-qubit system
+function applyGate2q_q1(gate, sv4) {
+  const [[m00,m01],[m10,m11]] = gate;
+  return [
+    cadd(cmul(m00, sv4[0]), cmul(m01, sv4[1])),  // |00⟩
+    cadd(cmul(m10, sv4[0]), cmul(m11, sv4[1])),  // |01⟩
+    cadd(cmul(m00, sv4[2]), cmul(m01, sv4[3])),  // |10⟩
+    cadd(cmul(m10, sv4[2]), cmul(m11, sv4[3]))   // |11⟩
+  ];
+}
+
+// CNOT: flip q1 if q0=|1⟩
+function applyCNOT(sv4) {
+  return [sv4[0], sv4[1], sv4[3], sv4[2]];
+}
+
+// Get probability of |0⟩ for single qubit (from 2D sv)
+function prob0_1q(sv) { return cabs2(sv[0]); }
+function prob1_1q(sv) { return cabs2(sv[1]); }
+
+// Phase angle in degrees
+function phaseAngle(sv) {
+  // Phase of |1⟩ component relative to |0⟩
+  if (cabs2(sv[1]) < 0.001) return 0;
+  return Math.atan2(sv[1].im, sv[1].re) * 180 / Math.PI;
+}
+
+// Phase color (for UI tinting)
+function phaseColor(angle) {
+  const h = ((angle % 360) + 360) % 360;
+  return `hsl(${h}, 70%, 60%)`;
+}
+
+// Classify state for display
+function classifyState(sv) {
+  const p0 = prob0_1q(sv);
+  const p1 = prob1_1q(sv);
+  const phase = phaseAngle(sv);
+  if (p0 > 0.98) return { type: '|0⟩', cls: 'sb-zero', label: '|0⟩', p0: 100, p1: 0, phase: 0 };
+  if (p1 > 0.98) return { type: '|1⟩', cls: 'sb-one', label: '|1⟩', p0: 0, p1: 100, phase };
+  // Check for specific superpositions
+  const isPlus = Math.abs(p0 - 0.5) < 0.01 && Math.abs(phase) < 5;
+  const isMinus = Math.abs(p0 - 0.5) < 0.01 && Math.abs(Math.abs(phase) - 180) < 5;
+  if (isPlus) return { type: '|+⟩', cls: 'sb-super', label: '|+⟩', p0: 50, p1: 50, phase: 0 };
+  if (isMinus) return { type: '|-⟩', cls: 'sb-super', label: '|-⟩', p0: 50, p1: 50, phase: 180 };
+  return {
+    type: 'SUPER',
+    cls: phase !== 0 ? 'sb-phase' : 'sb-super',
+    label: `${Math.round(p0*100)}%|0⟩`,
+    p0: Math.round(p0*100), p1: Math.round(p1*100), phase
+  };
+}
+
+// Compare two 1-qubit state vectors [c0, c1] for equality within tolerance
+// phaseStrict: if true, also checks that phases match (for Tier 2 levels)
+function statesEqual1q(a, b, phaseStrict) {
+  const pa0 = prob0_1q(a), pa1 = prob1_1q(a);
+  const pb0 = prob0_1q(b), pb1 = prob1_1q(b);
+  if (Math.abs(pa0 - pb0) > 0.05 || Math.abs(pa1 - pb1) > 0.05) return false;
+  if (!phaseStrict) return true;
+  // Only check phase when both qubits have meaningful amplitude in |1⟩
+  if (pa1 < 0.02 && pb1 < 0.02) return true; // both in |0⟩, phase irrelevant
+  const phA = phaseAngle(a), phB = phaseAngle(b);
+  const diff = ((phA - phB) % 360 + 360) % 360;
+  return diff < 20 || diff > 340;
+}
+
+// Compare two 4-element 2-qubit state vectors by probability only
+function statesEqual2q(a, b) {
+  return a.every((ca, i) => Math.abs(cabs2(ca) - cabs2(b[i])) < 0.06);
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  LEVEL DEFINITIONS
+// ═══════════════════════════════════════════════════════════════
+const GATE_META = {
+  X:    { name: 'X Gate',    symbol: 'X',    cls: 'gs-x',    desc: 'Flips |0⟩↔|1⟩ (NOT gate)' },
+  H:    { name: 'H Gate',    symbol: 'H',    cls: 'gs-h',    desc: 'Creates superposition' },
+  Z:    { name: 'Z Gate',    symbol: 'Z',    cls: 'gs-z',    desc: 'Flips phase of |1⟩' },
+  Y:    { name: 'Y Gate',    symbol: 'Y',    cls: 'gs-y',    desc: 'Flip + phase rotation' },
+  S:    { name: 'S Gate',    symbol: 'S',    cls: 'gs-s',    desc: 'Phase rotation 90°' },
+  T:    { name: 'T Gate',    symbol: 'T',    cls: 'gs-t',    desc: 'Phase rotation 45°' },
+  CNOT: { name: 'CNOT Gate', symbol: '⊕',   cls: 'gs-cnot', desc: 'Entangles two qubits' }
+};
+
+const GATE_EXPLANATIONS = {
+  X: '<strong>X (Pauli-X / NOT)</strong> flips the qubit state. |0⟩ becomes |1⟩ and |1⟩ becomes |0⟩. In a superposition, it swaps the amplitudes of |0⟩ and |1⟩.',
+  H: '<strong>H (Hadamard)</strong> creates superposition. Applied to |0⟩ it gives equal probability of measuring |0⟩ or |1⟩. This is the most important gate in quantum computing.',
+  Z: '<strong>Z (Pauli-Z)</strong> leaves |0⟩ unchanged but flips the phase of |1⟩. You can\'t see this in measurement probabilities — only in interference.',
+  Y: '<strong>Y (Pauli-Y)</strong> is a combination of X and Z. It flips the qubit AND rotates the phase by 90°.',
+  S: '<strong>S Gate</strong> is a 90° phase rotation applied only to the |1⟩ component. S = Z^(1/2).',
+  T: '<strong>T Gate</strong> is a 45° phase rotation — the finest phase tool. T = Z^(1/4). Used to build arbitrary rotations.',
+  CNOT: '<strong>CNOT (Controlled-NOT)</strong> uses the first qubit (control) to conditionally flip the second (target). If control is |0⟩, nothing happens. If control is |1⟩, target flips. When the control is in superposition, CNOT <em>entangles</em> the qubits.'
+};
+
+const LEVELS = [
+  // TIER 1 — Single qubit, X and H
+  { id:1,  tier:1, name:'Flip It',       gates:['X','H'],              qubits:1, initFn: () => [zeroState()],  targetFn: () => [oneState()],   maxSlots:3, desc: 'Transform |0⟩ into |1⟩. One gate is all you need.' },
+  { id:2,  tier:1, name:'Superpose',     gates:['X','H'],              qubits:1, initFn: () => [zeroState()],  targetFn: () => [plusState()],  maxSlots:3, desc: 'Create an equal superposition |+⟩ from |0⟩.' },
+  { id:3,  tier:1, name:'From One',      gates:['X','H'],              qubits:1, initFn: () => [oneState()],   targetFn: () => [minusState()], maxSlots:3, desc: 'Create superposition from |1⟩. H applied to |1⟩ gives |-⟩, not |+⟩ — the sign flips.' },
+  { id:4,  tier:1, name:'Double Flip',   gates:['X','H'],              qubits:1, initFn: () => [zeroState()],  targetFn: () => [oneState()],   maxSlots:4, desc: 'Use X twice then once more — or find the shortest path to |1⟩ using only X gates.' },
+  { id:5,  tier:1, name:'Back Again',    gates:['X','H'],              qubits:1, initFn: () => [plusState()],  targetFn: () => [zeroState()],  maxSlots:3, desc: 'Undo superposition back to |0⟩. H is its own inverse — H·H = I.' },
+  { id:6,  tier:1, name:'Three Steps',   gates:['X','H'],              qubits:1, initFn: () => [zeroState()],  targetFn: () => [minusState()], maxSlots:4, desc: 'Reach |-⟩ from |0⟩. You need both X and H — the order matters.' },
+  // TIER 2 — Phase gates
+  { id:7,  tier:2, name:'Phase Flip',    gates:['X','H','Z'],          qubits:1, initFn: () => [plusState()],  targetFn: () => [minusState()], maxSlots:3, desc: 'Z flips the phase of a superposition. Apply Z to |+⟩ to get |-⟩.' },
+  { id:8,  tier:2, name:'Z then H',      gates:['X','H','Z'],          qubits:1, initFn: () => [oneState()],   targetFn: () => [minusState()], maxSlots:4, desc: 'Combine gates to reach |-⟩ from |1⟩. Try H first.' },
+  { id:9,  tier:2, name:'S Gate',        gates:['X','H','Z','S'],      qubits:1, initFn: () => [zeroState()],  targetFn: () => [plusState()],  maxSlots:3, desc: 'Reach |+⟩ using H. Note: two S gates equal one Z. S alone does not change probabilities.' },
+  { id:10, tier:2, name:'T Twice',       gates:['X','H','Z','S','T'],  qubits:1, initFn: () => [zeroState()],  targetFn: () => [oneState()],   maxSlots:5, desc: 'Reach |1⟩ from |0⟩. X is the direct route — but can you also do it with H and Z?' },
+  { id:11, tier:2, name:'Phase Path',    gates:['X','H','Z','Y','S','T'], qubits:1, initFn: () => [zeroState()], targetFn: () => [oneState()], maxSlots:4, desc: 'Y = iXZ: it both flips and phase-rotates. Find a path to |1⟩ using Y.' },
+  { id:12, tier:2, name:'Full Toolkit',  gates:['X','H','Z','Y','S','T'], qubits:1, initFn: () => [minusState()], targetFn: () => [zeroState()], maxSlots:5, desc: 'Transform |-⟩ → |0⟩. Think about what undoes H then X.' },
+  // TIER 3 — Two qubits, CNOT
+  { id:13, tier:3, name:'CNOT Basics',   gates:['X','H','CNOT'],       qubits:2, initFn: () => { let s = twoQubitZero(); s = applyGate2q_q0(GATES_MATH.X, s); return s; }, target2qFn: () => { let s = twoQubitZero(); s = applyGate2q_q0(GATES_MATH.X, s); return applyCNOT(s); }, maxSlots:4, desc: 'q0 starts as |1⟩. Apply CNOT: when control is |1⟩, target flips. Expected output: |11⟩.', target2qLabel: '|11⟩' },
+  { id:14, tier:3, name:'Flip Control',  gates:['X','H','CNOT'],       qubits:2, initFn: () => twoQubitZero(), target2qFn: () => { let s = twoQubitZero(); s = applyGate2q_q0(GATES_MATH.X, s); return applyCNOT(s); }, maxSlots:4, desc: 'Start from |00⟩. Flip q0 to |1⟩ first, then CNOT — q1 should follow.', target2qLabel: '|11⟩' },
+  { id:15, tier:3, name:'Bell State',    gates:['X','H','CNOT'],       qubits:2, initFn: () => twoQubitZero(), target2qFn: () => { let s = twoQubitZero(); s = applyGate2q_q0(GATES_MATH.H, s); return applyCNOT(s); }, maxSlots:5, desc: '<strong>The most important circuit in quantum computing.</strong> H on q0, then CNOT. The qubits become entangled — measuring one instantly determines the other.', target2qLabel: 'Bell |Φ⁺⟩' },
+  { id:16, tier:3, name:'Other Bell',    gates:['X','H','CNOT'],       qubits:2, initFn: () => twoQubitZero(), target2qFn: () => { let s = twoQubitZero(); s = applyGate2q_q0(GATES_MATH.X, s); s = applyGate2q_q0(GATES_MATH.H, s); return applyCNOT(s); }, maxSlots:5, desc: 'Build the |Ψ⁺⟩ Bell state. Start with X on q0, then H, then CNOT.', target2qLabel: 'Bell |Ψ⁺⟩' },
+  { id:17, tier:3, name:'Free Build',    gates:['X','H','Z','CNOT'],   qubits:2, initFn: () => twoQubitZero(), target2qFn: () => null, maxSlots:6, desc: '<strong>Free build:</strong> Entangle both qubits in equal superposition. No fixed target — the circuit validates when you achieve a Bell state.', target2qLabel: 'ENTANGLED', isFree: true },
+  { id:18, tier:3, name:'Grand Finale',  gates:['X','H','Z','Y','S','T','CNOT'], qubits:2, initFn: () => twoQubitZero(), target2qFn: () => { let s = twoQubitZero(); s = applyGate2q_q0(GATES_MATH.H, s); s = applyGate2q_q1(GATES_MATH.H, s); return applyCNOT(s); }, maxSlots:6, desc: 'H on q0, H on q1, then CNOT. Both qubits enter superposition before entanglement. Full toolkit available.', target2qLabel: 'H⊗H then CNOT' }
+];
+
+// ═══════════════════════════════════════════════════════════════
+//  GAME STATE
+// ═══════════════════════════════════════════════════════════════
+let currentLevelId = 1;
+let completedLevels = JSON.parse(localStorage.getItem('qcb_completed') || '[]');
+let circuit = []; // circuit[q][slot] = gateId | null
+let circuitState = null; // current run state
+let runStep = -1;
+let lastGateUsed = null;
+let dragGate = null;
+let numSlots = 4;
+let numQubits = 1;
+
+function getCurrentLevel() {
+  return LEVELS.find(l => l.id === currentLevelId);
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  CIRCUIT EXECUTION
+// ═══════════════════════════════════════════════════════════════
+function executeCircuit(level) {
+  const is2q = level.qubits === 2;
+  let states = [];
+
+  const initState = level.initFn();
+
+  if (!is2q) {
+    let sv = [...initState[0]];
+    states.push([...sv]);
+    for (let slot = 0; slot < numSlots; slot++) {
+      const gid = circuit[0][slot];
+      if (gid && GATES_MATH[gid]) sv = applyGate1q(GATES_MATH[gid], sv);
+      states.push([...sv]);
+    }
+  } else {
+    let sv4 = [...initState];
+    states.push([...sv4]);
+    for (let slot = 0; slot < numSlots; slot++) {
+      const g0 = circuit[0][slot];
+      const g1 = circuit[1][slot];
+      if (g0 === 'CNOT') {
+        sv4 = applyCNOT(sv4);
+      } else {
+        if (g0 && GATES_MATH[g0]) sv4 = applyGate2q_q0(GATES_MATH[g0], sv4);
+        if (g1 && GATES_MATH[g1] && g1 !== '_CNOT_TARGET') sv4 = applyGate2q_q1(GATES_MATH[g1], sv4);
+      }
+      states.push([...sv4]);
+    }
+  }
+  return states;
+}
+
+function getFinalState(level) {
+  const states = executeCircuit(level);
+  return states[states.length - 1];
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  CHECK WIN
+// ═══════════════════════════════════════════════════════════════
+function checkWin(level) {
+  const final = getFinalState(level);
+
+  // Free build (L17): detect any Bell state (entanglement)
+  if (level.isFree) {
+    const p00 = cabs2(final[0]), p11 = cabs2(final[3]);
+    const p01 = cabs2(final[1]), p10 = cabs2(final[2]);
+    return Math.abs(p00 - 0.5) < 0.08 && Math.abs(p11 - 0.5) < 0.08 && p01 < 0.08 && p10 < 0.08;
+  }
+
+  // Must have placed at least one gate to win (prevents false win on empty circuit)
+  const hasGate = circuit.some(row => row.some(g => g && g !== '_CNOT_TARGET'));
+  if (!hasGate) return false;
+
+  if (level.qubits === 2) {
+    // final is [c00,c01,c10,c11]
+    const target = level.target2qFn();
+    if (!target) return false;
+    return statesEqual2q(final, target);
+  }
+
+  // 1q: final is [c0,c1]
+  const target = level.targetFn()[0]; // targetFn returns [stateVector]
+  const phaseStrict = level.tier === 2; // only tier 2 cares about phase
+  return statesEqual1q(final, target, phaseStrict);
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  UI BUILDING
+// ═══════════════════════════════════════════════════════════════
+function buildToolbox(level) {
+  const el = document.getElementById('toolbox-gates');
+  el.innerHTML = '';
+  level.gates.forEach(gid => {
+    const m = GATE_META[gid];
+    const tile = document.createElement('div');
+    tile.className = 'gate-tile';
+    tile.setAttribute('draggable', 'true');
+    tile.dataset.gate = gid;
+    tile.innerHTML = `
+      <div class="gate-symbol ${m.cls}">${m.symbol}</div>
+      <div class="gate-info">
+        <div class="gate-name">${m.name}</div>
+        <div class="gate-desc">${m.desc}</div>
+      </div>`;
+    tile.addEventListener('dragstart', e => {
+      dragGate = gid;
+      tile.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'copy';
+    });
+    tile.addEventListener('dragend', () => {
+      dragGate = null;
+      tile.classList.remove('dragging');
+    });
+    tile.addEventListener('click', () => showGateExplain(gid));
+    el.appendChild(tile);
+  });
+}
+
+function buildCircuit(level) {
+  numQubits = level.qubits;
+  numSlots = level.maxSlots;
+  circuit = Array.from({length: numQubits}, () => Array(numSlots).fill(null));
+
+  const rows = document.getElementById('qubit-rows');
+  rows.innerHTML = '';
+
+  const initStates = level.qubits === 2 ? null : level.initFn();
+
+  for (let q = 0; q < numQubits; q++) {
+    const row = document.createElement('div');
+    row.className = 'qubit-row';
+    row.id = `qubit-row-${q}`;
+
+    // Label
+    const label = document.createElement('div');
+    label.className = 'qubit-label';
+    const isCtrl = q === 0 && numQubits === 2;
+    const isTgt = q === 1 && numQubits === 2;
+    label.innerHTML = `<div class="qubit-label-inner" style="font-size:9px;color:var(--text-dim);">
+      q${q}${isCtrl?' (ctrl)':isTgt?' (tgt)':''}
+    </div>`;
+
+    // Input state bubble
+    let initSv;
+    if (level.qubits === 1) { initSv = initStates[0]; }
+    else {
+      const sv4 = level.initFn();
+      // For display, extract marginal for each qubit
+      if (q === 0) initSv = [c(Math.sqrt(cabs2(sv4[0])+cabs2(sv4[1]))), c(Math.sqrt(cabs2(sv4[2])+cabs2(sv4[3])))];
+      else initSv = [c(Math.sqrt(cabs2(sv4[0])+cabs2(sv4[2]))), c(Math.sqrt(cabs2(sv4[1])+cabs2(sv4[3])))];
+    }
+    const inClass = classifyState(initSv);
+    const inBubble = document.createElement('div');
+    inBubble.className = `state-bubble ${inClass.cls}`;
+    inBubble.id = `in-bubble-${q}`;
+    inBubble.textContent = inClass.label;
+
+    // Wire with slots
+    const wire = document.createElement('div');
+    wire.className = 'wire-container';
+    const wireLine = document.createElement('div');
+    wireLine.className = 'wire-line';
+    const slots = document.createElement('div');
+    slots.className = 'wire-slots';
+    slots.id = `wire-slots-${q}`;
+
+    for (let s = 0; s < numSlots; s++) {
+      const slot = document.createElement('div');
+      slot.className = 'gate-slot';
+      slot.dataset.qubit = q;
+      slot.dataset.slot = s;
+
+      slot.addEventListener('dragover', e => {
+        e.preventDefault();
+        // CNOT only on q0
+        if (dragGate === 'CNOT' && q !== 0) return;
+        slot.classList.add('drag-over');
+      });
+      slot.addEventListener('dragleave', () => slot.classList.remove('drag-over'));
+      slot.addEventListener('drop', e => {
+        e.preventDefault();
+        slot.classList.remove('drag-over');
+        if (dragGate === 'CNOT' && q !== 0) return;
+        placeGate(q, s, dragGate);
+      });
+      slot.addEventListener('click', () => {
+        if (circuit[q][s]) {
+          showGateExplain(circuit[q][s]);
+          removeGate(q, s);
+        }
+      });
+
+      slots.appendChild(slot);
+    }
+
+    wire.appendChild(wireLine);
+    wire.appendChild(slots);
+
+    // Output state bubble
+    const outBubble = document.createElement('div');
+    outBubble.className = 'state-bubble sb-zero';
+    outBubble.id = `out-bubble-${q}`;
+    outBubble.textContent = inClass.label;
+    outBubble.style.opacity = '0.4';
+
+    row.appendChild(label);
+    row.appendChild(inBubble);
+    row.appendChild(wire);
+    row.appendChild(outBubble);
+    rows.appendChild(row);
+  }
+
+  buildStateCompare(level);
+  update2qProbGrid(level.initFn(), level);
+}
+
+function placeGate(q, slot, gid) {
+  if (!gid) return;
+  circuit[q][slot] = gid;
+  // For CNOT, also mark q1 same slot
+  if (gid === 'CNOT' && numQubits === 2) {
+    circuit[1][slot] = '_CNOT_TARGET';
+  }
+  renderSlots();
+  updateOutputState();
+  lastGateUsed = gid;
+  showGateExplain(gid);
+}
+
+function removeGate(q, slot) {
+  if (circuit[q][slot] === 'CNOT') {
+    // Also clear target
+    if (numQubits === 2) circuit[1][slot] = null;
+  }
+  if (circuit[q][slot] === '_CNOT_TARGET') {
+    circuit[0][slot] = null;
+  }
+  circuit[q][slot] = null;
+  renderSlots();
+  updateOutputState();
+}
+
+function renderSlots() {
+  for (let q = 0; q < numQubits; q++) {
+    const slotsEl = document.getElementById(`wire-slots-${q}`);
+    if (!slotsEl) continue;
+    const slotEls = slotsEl.querySelectorAll('.gate-slot');
+
+    slotEls.forEach((slotEl, s) => {
+      const gid = circuit[q][s];
+      slotEl.innerHTML = '';
+      slotEl.className = 'gate-slot';
+
+      if (!gid) return;
+      slotEl.classList.add('has-gate');
+
+      if (gid === '_CNOT_TARGET') {
+        // Draw the target circle (⊕)
+        const g = document.createElement('div');
+        g.className = 'placed-gate';
+        g.style.cssText = 'border-color: var(--purple); background: rgba(168,85,247,0.1); color: var(--purple); font-size:16px; width:44px; height:40px;';
+        g.textContent = '○';
+        slotEl.appendChild(g);
+        return;
+      }
+
+      const m = GATE_META[gid];
+      if (!m) return;
+
+      const g = document.createElement('div');
+      g.className = 'placed-gate';
+      const colorMap = {
+        'gs-x': 'var(--cyan)', 'gs-h': 'var(--purple)', 'gs-z': 'var(--amber)',
+        'gs-y': 'var(--red)', 'gs-s': 'var(--green)', 'gs-t': 'rgba(0,229,255,0.5)', 'gs-cnot': 'var(--purple)'
+      };
+      const col = colorMap[m.cls] || 'var(--cyan)';
+      g.style.cssText = `border-color: ${col}; background: rgba(0,0,0,0.3); color: ${col};`;
+      g.textContent = m.symbol;
+      const rem = document.createElement('div');
+      rem.className = 'remove-gate';
+      rem.textContent = '×';
+      g.appendChild(rem);
+      slotEl.appendChild(g);
+    });
+  }
+
+  // Draw CNOT connector line
+  renderCNOTConnectors();
+}
+
+function renderCNOTConnectors() {
+  // Remove old connectors
+  document.querySelectorAll('.cnot-connector').forEach(el => el.remove());
+
+  if (numQubits < 2) return;
+
+  for (let s = 0; s < numSlots; s++) {
+    if (circuit[0][s] === 'CNOT') {
+      const slot0 = document.querySelector(`#wire-slots-0 .gate-slot:nth-child(${s+1})`);
+      const slot1 = document.querySelector(`#wire-slots-1 .gate-slot:nth-child(${s+1})`);
+      if (!slot0 || !slot1) continue;
+
+      const r0 = slot0.getBoundingClientRect();
+      const r1 = slot1.getBoundingClientRect();
+      const wrapper = document.getElementById('qubit-rows');
+      const wr = wrapper.getBoundingClientRect();
+
+      const line = document.createElement('div');
+      line.className = 'cnot-connector';
+      line.style.left = (r0.left - wr.left + r0.width/2) + 'px';
+      line.style.top = (r0.top - wr.top + r0.height) + 'px';
+      line.style.height = (r1.top - r0.bottom) + 'px';
+      wrapper.appendChild(line);
+    }
+  }
+}
+
+function updateOutputState() {
+  const level = getCurrentLevel();
+  const states = executeCircuit(level);
+  const finalState = states[states.length - 1];
+
+  if (numQubits === 1) {
+    // finalState is [c0, c1]
+    const sv = finalState;
+    const cl = classifyState(sv);
+    const outBubble = document.getElementById('out-bubble-0');
+    if (outBubble) {
+      outBubble.className = `state-bubble ${cl.cls}`;
+      outBubble.textContent = cl.label;
+      outBubble.style.opacity = '1';
+      if (cl.phase) outBubble.style.borderColor = phaseColor(cl.phase);
+      else outBubble.style.borderColor = '';
+    }
+    updateInspector(sv, null);
+  } else {
+    // finalState is [c00,c01,c10,c11]
+    const sv4 = finalState;
+    for (let q = 0; q < 2; q++) {
+      const outBubble = document.getElementById(`out-bubble-${q}`);
+      if (!outBubble) continue;
+      let p0, p1;
+      if (q === 0) { p0 = cabs2(sv4[0])+cabs2(sv4[1]); p1 = cabs2(sv4[2])+cabs2(sv4[3]); }
+      else         { p0 = cabs2(sv4[0])+cabs2(sv4[2]); p1 = cabs2(sv4[1])+cabs2(sv4[3]); }
+      const svMarg = [c(Math.sqrt(p0)), c(Math.sqrt(p1))];
+      const cl = classifyState(svMarg);
+      outBubble.className = `state-bubble ${cl.cls}`;
+      outBubble.textContent = cl.label;
+      outBubble.style.opacity = '1';
+    }
+    updateInspector(null, sv4);
+  }
+
+  buildStateCompare(level);
+}
+
+function buildStateCompare(level) {
+  const el = document.getElementById('state-compare');
+  el.innerHTML = '';
+
+  const states = executeCircuit(level);
+  const finalState = states[states.length - 1];
+  const won = checkWin(level);
+
+  if (numQubits === 1) {
+    // finalState is [c0, c1]
+    const sv = finalState;
+    const cl = classifyState(sv);
+
+    const targetSv = level.targetFn()[0];
+    const tcl = classifyState(targetSv);
+
+    el.innerHTML = `
+      <div class="target-row">
+        <span style="font-size:9px;letter-spacing:2px;color:var(--text-dim);">OUTPUT</span>
+        <div class="target-bubble" style="width:44px;height:44px;border-color:var(--cyan);background:var(--cyan-dim);color:var(--cyan);">${cl.label}</div>
+        <span class="vs-arrow">→</span>
+        <span style="font-size:9px;letter-spacing:2px;color:var(--green);">TARGET</span>
+        <div class="target-bubble">${tcl.label}</div>
+        <span class="match-indicator ${won ? 'match-yes' : 'match-no'}">${won ? '✓ MATCH' : '✗ MISMATCH'}</span>
+      </div>`;
+  } else {
+    const sv4 = finalState;
+    const p00 = Math.round(cabs2(sv4[0]) * 100);
+    const p01 = Math.round(cabs2(sv4[1]) * 100);
+    const p10 = Math.round(cabs2(sv4[2]) * 100);
+    const p11 = Math.round(cabs2(sv4[3]) * 100);
+    const targetLabel = level.target2qLabel || '—';
+
+    el.innerHTML = `
+      <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
+        <div>
+          <div style="font-size:9px;letter-spacing:2px;color:var(--text-dim);margin-bottom:6px;">OUTPUT PROBABILITIES</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;width:160px;">
+            ${[['|00⟩',p00],['|01⟩',p01],['|10⟩',p10],['|11⟩',p11]].map(([l,v]) =>
+              `<div style="background:var(--panel2);border:1px solid ${v>30?'var(--cyan)':'var(--border)'};border-radius:4px;padding:6px;text-align:center;">
+                <div style="font-size:9px;color:var(--text-dim);">${l}</div>
+                <div style="font-size:13px;font-weight:700;color:${v>30?'var(--cyan)':'var(--text-dim)'};">${v}%</div>
+              </div>`).join('')}
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px;align-items:center;">
+          <div style="font-size:9px;letter-spacing:2px;color:var(--green);">TARGET: ${targetLabel}</div>
+          <span class="match-indicator ${won ? 'match-yes' : 'match-no'}">${won ? '✓ CIRCUIT SOLVED' : '✗ NOT YET'}</span>
+        </div>
+      </div>`;
+  }
+}
+
+function update2qProbGrid(sv4, level) {
+  const wrap = document.getElementById('prob-grid-2q-wrap');
+  if (numQubits < 2) { wrap.style.display = 'none'; return; }
+  wrap.style.display = 'block';
+  // handled in buildStateCompare for now
+}
+
+function updateInspector(sv1q, sv4) {
+  const el = document.getElementById('inspector-content');
+  if (sv1q) {
+    const p0 = Math.round(prob0_1q(sv1q) * 100);
+    const p1 = 100 - p0;
+    const phase = phaseAngle(sv1q);
+    el.innerHTML = `
+      <div class="prob-bar-wrap">
+        <div class="prob-bar-row">
+          <span class="pb-label">|0⟩</span>
+          <div class="pb-track"><div class="pb-fill" style="width:${p0}%"></div></div>
+          <span class="pb-pct">${p0}%</span>
+        </div>
+        <div class="prob-bar-row">
+          <span class="pb-label">|1⟩</span>
+          <div class="pb-track"><div class="pb-fill" style="width:${p1}%;background:linear-gradient(90deg,rgba(168,85,247,0.4),var(--purple))"></div></div>
+          <span class="pb-pct">${p1}%</span>
+        </div>
+        ${Math.abs(p1) > 2 ? `<div style="font-size:9px;color:var(--text-dim);margin-top:6px;">Phase: <span style="color:${phaseColor(phase)}">${Math.round(phase)}°</span></div>` : ''}
+      </div>`;
+  } else if (sv4) {
+    const probs = [cabs2(sv4[0]),cabs2(sv4[1]),cabs2(sv4[2]),cabs2(sv4[3])];
+    const labels = ['|00⟩','|01⟩','|10⟩','|11⟩'];
+    el.innerHTML = `<div class="prob-bar-wrap">
+      ${labels.map((l,i) => `
+        <div class="prob-bar-row">
+          <span class="pb-label" style="width:40px;">${l}</span>
+          <div class="pb-track"><div class="pb-fill" style="width:${Math.round(probs[i]*100)}%"></div></div>
+          <span class="pb-pct">${Math.round(probs[i]*100)}%</span>
+        </div>`).join('')}
+    </div>`;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  RUN ANIMATION
+// ═══════════════════════════════════════════════════════════════
+function runCircuit() {
+  const level = getCurrentLevel();
+  const runBtn = document.getElementById('run-btn');
+  runBtn.disabled = true;
+  document.getElementById('run-cursor').style.display = 'block';
+
+  const states = executeCircuit(level);
+  let step = 0;
+
+  const slotsEl = document.getElementById('wire-slots-0');
+  const slotEls = slotsEl ? slotsEl.querySelectorAll('.gate-slot') : [];
+
+  function animStep() {
+    if (step >= numSlots) {
+      document.getElementById('run-cursor').style.display = 'none';
+      runBtn.disabled = false;
+      updateOutputState();
+
+      const won = checkWin(level);
+      if (won) {
+        setTimeout(() => showResult(true), 500);
+      }
+      document.getElementById('step-counter').innerHTML = `STEP <span>—</span>`;
+      return;
+    }
+
+    document.getElementById('step-counter').innerHTML = `STEP <span>${step + 1}/${numSlots}</span>`;
+
+    // Move cursor
+    if (slotEls[step]) {
+      const r = slotEls[step].getBoundingClientRect();
+      const wrapR = document.getElementById('circuit-wrapper').getBoundingClientRect();
+      const cursor = document.getElementById('run-cursor');
+      cursor.style.left = (r.left - wrapR.left) + 'px';
+      cursor.style.top = '0px';
+      cursor.style.height = wrapR.height + 'px';
+    }
+
+    // Update state display at this step
+    const stateAtStep = states[step + 1];
+    if (numQubits === 1) {
+      // stateAtStep is [c0, c1] directly
+      const sv = stateAtStep;
+      const cl = classifyState(sv);
+      const outBubble = document.getElementById('out-bubble-0');
+      if (outBubble) {
+        outBubble.className = `state-bubble ${cl.cls}`;
+        outBubble.textContent = cl.label;
+        outBubble.style.opacity = '1';
+      }
+      updateInspector(sv, null);
+    } else {
+      const sv4 = stateAtStep;
+      updateInspector(null, sv4);
+    }
+
+    // Highlight active gate
+    if (circuit[0][step]) lastGateUsed = circuit[0][step];
+
+    step++;
+    setTimeout(animStep, 450);
+  }
+
+  animStep();
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  GATE EXPLAIN
+// ═══════════════════════════════════════════════════════════════
+function showGateExplain(gid) {
+  const el = document.getElementById('gate-explain');
+  el.innerHTML = GATE_EXPLANATIONS[gid] || '';
+}
+
+function showWhyExplain() {
+  if (lastGateUsed) showGateExplain(lastGateUsed);
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  RESULT
+// ═══════════════════════════════════════════════════════════════
+function showResult(won) {
+  if (!completedLevels.includes(currentLevelId)) {
+    completedLevels.push(currentLevelId);
+    localStorage.setItem('qcb_completed', JSON.stringify(completedLevels));
+  }
+
+  const card = document.getElementById('result-card');
+  document.getElementById('result-icon').textContent = won ? '◎' : '◌';
+  document.getElementById('result-title').textContent = won ? 'CIRCUIT SOLVED' : 'WRONG OUTPUT';
+  card.className = `result-card ${won ? 'win' : 'lose'}`;
+
+  const level = getCurrentLevel();
+  const winMsgs = [
+    `The circuit transforms the qubit correctly. You've learned how ${lastGateUsed || 'gates'} shapes quantum state.`,
+    `Perfect. The output matches the target — the logic of quantum gates yields to patient reasoning.`,
+    `Solved. Every gate you placed had meaning. That's what quantum programming feels like.`
+  ];
+  const loseMsgs = [
+    `The output state doesn't match the target. Try reordering the gates — in quantum computing, order always matters.`,
+    `Close, but the qubit state is wrong. Check which gates change probability vs phase.`
+  ];
+  document.getElementById('result-msg').textContent = won
+    ? winMsgs[Math.floor(Math.random() * winMsgs.length)]
+    : loseMsgs[Math.floor(Math.random() * loseMsgs.length)];
+
+  document.getElementById('res-next-btn').style.display = currentLevelId < LEVELS.length ? 'inline-flex' : 'none';
+  document.getElementById('result-overlay').classList.add('active');
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  NAVIGATION
+// ═══════════════════════════════════════════════════════════════
+function startLevel(id) {
+  currentLevelId = id;
+  const level = LEVELS.find(l => l.id === id);
+
+  document.getElementById('nav-level-num').textContent = id;
+  document.getElementById('nav-level-name').textContent = level.name;
+  document.getElementById('puzzle-desc').innerHTML = level.desc;
+  document.getElementById('result-overlay').classList.remove('active');
+  document.getElementById('run-cursor').style.display = 'none';
+  document.getElementById('step-counter').innerHTML = `STEP <span>—</span>`;
+  document.getElementById('gate-explain').innerHTML = 'Click any gate to learn what it does.';
+
+  document.getElementById('screen-select').classList.remove('active');
+  document.getElementById('screen-game').classList.add('active');
+
+  buildToolbox(level);
+  buildCircuit(level);
+  updateOutputState();
+}
+
+function resetCircuit() {
+  const level = getCurrentLevel();
+  document.getElementById('result-overlay').classList.remove('active');
+  document.getElementById('run-cursor').style.display = 'none';
+  buildCircuit(level);
+  updateOutputState();
+}
+
+function nextLevel() {
+  if (currentLevelId < LEVELS.length) startLevel(currentLevelId + 1);
+}
+
+function showSelect() {
+  document.getElementById('result-overlay').classList.remove('active');
+  document.getElementById('screen-game').classList.remove('active');
+  document.getElementById('screen-select').classList.add('active');
+  buildLevelSelect();
+}
+
+function goToLab() { showSelect(); }
+
+// ═══════════════════════════════════════════════════════════════
+//  LEVEL SELECT BUILD
+// ═══════════════════════════════════════════════════════════════
+function buildLevelSelect() {
+  const container = document.getElementById('tier-container');
+  container.innerHTML = '';
+
+  const tiers = [
+    { tier: 1, title: 'TIER 1 — Foundations', desc: 'Single qubit · X and H gates only' },
+    { tier: 2, title: 'TIER 2 — Phase Gates',  desc: 'Single qubit · Phase-sensitive targets' },
+    { tier: 3, title: 'TIER 3 — Entanglement', desc: 'Two qubits · CNOT · Bell states' }
+  ];
+
+  tiers.forEach(({tier, title, desc}) => {
+    const sec = document.createElement('div');
+    sec.className = 'tier-section';
+
+    const hdr = document.createElement('div');
+    hdr.className = 'tier-header';
+    hdr.innerHTML = `<span class="tier-title">${title}</span><span class="tier-desc">${desc}</span><div class="tier-line"></div>`;
+    sec.appendChild(hdr);
+
+    const row = document.createElement('div');
+    row.className = 'levels-row';
+    row.style.gridTemplateColumns = 'repeat(6,1fr)';
+
+    LEVELS.filter(l => l.tier === tier).forEach((level, i) => {
+      const allPrev = tier === 1 ? true : LEVELS.filter(l2 => l2.tier === tier - 1).every(l2 => completedLevels.includes(l2.id));
+      const firstInTier = LEVELS.filter(l2 => l2.tier === tier)[0].id;
+      const prevLevelId = level.id - 1;
+      const unlocked = level.id === 1 || completedLevels.includes(prevLevelId) || (level.id === firstInTier && allPrev);
+      const completed = completedLevels.includes(level.id);
+
+      const card = document.createElement('div');
+      card.className = `level-card${completed ? ' completed' : ''}${!unlocked ? ' locked' : ''}`;
+      card.innerHTML = `
+        <div class="lc-num">L-${String(level.id).padStart(2,'0')}</div>
+        <div class="lc-name">${level.name}</div>
+        <div class="lc-desc">${level.desc.replace(/<[^>]+>/g,'')}</div>`;
+      if (unlocked) card.onclick = () => startLevel(level.id);
+      row.appendChild(card);
+    });
+
+    sec.appendChild(row);
+    container.appendChild(sec);
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════════════════════════
+buildLevelSelect();
+</script>
+</body>
+</html>

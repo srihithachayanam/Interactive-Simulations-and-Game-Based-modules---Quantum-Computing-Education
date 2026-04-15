@@ -1,0 +1,1765 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Station 05 — Grover's Hunt</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #04060d;
+  --panel: #0f1628;
+  --border: #1a2540;
+  --cyan: #00e5ff;
+  --teal: #00ffcc;
+  --amber: #f59e0b;
+  --green: #10b981;
+  --red: #ef4444;
+  --muted: #4a5568;
+  --text: #c8d6e5;
+  --dim: #6b7a94;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Space Mono', monospace;
+  min-height: 100vh;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,229,255,0.012) 2px, rgba(0,229,255,0.012) 4px);
+  pointer-events: none;
+  z-index: 9999;
+}
+
+/* HEADER */
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 20px;
+  border-bottom: 1px solid var(--border);
+  background: rgba(15,22,40,0.95);
+  backdrop-filter: blur(10px);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  flex-shrink: 0;
+}
+
+.station-tag {
+  font-size: 10px;
+  color: var(--cyan);
+  letter-spacing: 3px;
+  border: 1px solid var(--cyan);
+  padding: 3px 8px;
+}
+
+.station-title {
+  font-family: 'Syne', sans-serif;
+  font-size: 18px;
+  font-weight: 800;
+  color: #fff;
+  letter-spacing: 1px;
+  margin-left: 12px;
+}
+
+.back-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--dim);
+  font-family: 'Space Mono', monospace;
+  font-size: 11px;
+  padding: 5px 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+  letter-spacing: 1px;
+}
+.back-btn:hover { border-color: var(--cyan); color: var(--cyan); }
+
+/* CONTROL STRIP */
+.control-strip {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 10px 20px;
+  border-bottom: 1px solid var(--border);
+  background: rgba(15,22,40,0.7);
+  flex-wrap: wrap;
+  flex-shrink: 0;
+}
+
+.level-selector {
+  display: flex;
+  gap: 4px;
+}
+
+.level-btn {
+  padding: 4px 12px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  color: var(--dim);
+  font-family: 'Space Mono', monospace;
+  font-size: 10px;
+  cursor: pointer;
+  transition: all 0.2s;
+  letter-spacing: 1px;
+}
+.level-btn:hover { border-color: var(--cyan); color: var(--cyan); }
+.level-btn.active { border-color: var(--cyan); color: var(--cyan); background: rgba(0,229,255,0.08); }
+
+.challenge-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.toggle-track {
+  width: 36px;
+  height: 18px;
+  background: var(--border);
+  border-radius: 9px;
+  position: relative;
+  transition: background 0.3s;
+}
+
+.toggle-track.on { background: rgba(0,229,255,0.4); }
+
+.toggle-thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--dim);
+  transition: all 0.3s;
+}
+
+.toggle-track.on .toggle-thumb {
+  left: 20px;
+  background: var(--cyan);
+}
+
+.toggle-label { font-size: 10px; color: var(--dim); letter-spacing: 1px; }
+.toggle-track.on + .toggle-label { color: var(--cyan); }
+
+.start-btn {
+  padding: 8px 24px;
+  background: rgba(0,229,255,0.1);
+  border: 1px solid var(--cyan);
+  color: var(--cyan);
+  font-family: 'Space Mono', monospace;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-transform: uppercase;
+}
+.start-btn:hover { background: rgba(0,229,255,0.18); box-shadow: 0 0 12px rgba(0,229,255,0.2); }
+.start-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+.start-btn.danger { border-color: var(--red); color: var(--red); background: rgba(239,68,68,0.08); }
+
+/* STATUS BAR */
+.status-bar {
+  display: flex;
+  gap: 20px;
+  padding: 8px 20px;
+  border-bottom: 1px solid var(--border);
+  background: rgba(0,0,0,0.2);
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.stat-item { display: flex; gap: 8px; align-items: center; }
+.stat-label { font-size: 9px; color: var(--dim); letter-spacing: 2px; }
+.stat-value { font-size: 13px; font-weight: 700; color: var(--cyan); }
+.stat-value.warn { color: var(--amber); }
+.stat-value.danger { color: var(--red); animation: dangerPulse 0.5s ease-in-out infinite alternate; }
+
+@keyframes dangerPulse { from { opacity: 1; } to { opacity: 0.5; } }
+
+.separator { width: 1px; height: 20px; background: var(--border); }
+
+/* RACE STATUS */
+.race-status {
+  padding: 6px 20px;
+  font-size: 11px;
+  color: var(--text);
+  background: rgba(0,229,255,0.03);
+  border-bottom: 1px solid rgba(0,229,255,0.1);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.race-indicator {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.race-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--border);
+}
+
+.race-dot.active { background: var(--green); box-shadow: 0 0 6px var(--green); animation: racePulse 0.8s ease-in-out infinite alternate; }
+.race-dot.done-q { background: var(--teal); }
+.race-dot.done-c { background: var(--amber); }
+
+@keyframes racePulse { from { opacity: 1; } to { opacity: 0.3; } }
+
+/* MAIN AREA */
+.main-area {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 0;
+  flex: 1;
+  min-height: 0;
+}
+
+/* GRID PANELS */
+.grid-panel {
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.grid-panel:last-child { border-right: none; }
+
+.panel-header {
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+}
+
+.panel-title {
+  font-family: 'Syne', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.panel-tag {
+  font-size: 9px;
+  letter-spacing: 2px;
+  padding: 2px 6px;
+  border: 1px solid;
+}
+
+.classical-tag { border-color: var(--amber); color: var(--amber); }
+.quantum-tag { border-color: var(--teal); color: var(--teal); }
+
+/* TILE GRIDS */
+.tile-grid-container {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px 16px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+.tile-grid {
+  display: grid;
+  gap: 4px;
+}
+
+/* CLASSICAL TILES */
+.c-tile {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  color: var(--dim);
+  position: relative;
+  transition: all 0.3s;
+  min-height: 32px;
+}
+
+.c-tile.checked {
+  background: rgba(26,37,64,0.5);
+  border-color: #2a3550;
+  color: #2a3550;
+}
+
+.c-tile.checked::after {
+  content: '✕';
+  position: absolute;
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.c-tile.current {
+  border-color: var(--amber);
+  background: rgba(245,158,11,0.1);
+  box-shadow: 0 0 8px rgba(245,158,11,0.3);
+}
+
+.c-tile.found {
+  background: rgba(245,158,11,0.2);
+  border-color: var(--amber);
+  color: var(--amber);
+  box-shadow: 0 0 12px rgba(245,158,11,0.4);
+  animation: foundGlow 0.5s ease-out;
+}
+
+@keyframes foundGlow {
+  0% { transform: scale(1.2); }
+  100% { transform: scale(1); }
+}
+
+/* QUANTUM TILES */
+.q-tile-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  align-items: center;
+}
+
+.amp-bar-track {
+  width: 100%;
+  height: 40px;
+  background: rgba(0,0,0,0.4);
+  position: relative;
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+
+.amp-bar {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: linear-gradient(to top, var(--teal), rgba(0,229,255,0.6));
+  transition: height 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  min-height: 1px;
+}
+
+.amp-bar.negative {
+  bottom: auto;
+  top: 0;
+  background: linear-gradient(to bottom, var(--red), rgba(239,68,68,0.4));
+}
+
+.amp-bar.marked {
+  background: linear-gradient(to top, var(--amber), rgba(245,158,11,0.7));
+  box-shadow: 0 0 8px rgba(245,158,11,0.4);
+}
+
+.amp-bar.oracle-flash {
+  animation: oracleFlash 0.3s ease-out;
+}
+
+@keyframes oracleFlash {
+  0% { background: rgba(239,68,68,0.9); }
+  100% { background: linear-gradient(to top, var(--amber), rgba(245,158,11,0.7)); }
+}
+
+.q-tile {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  color: var(--dim);
+  width: 100%;
+  min-height: 28px;
+  position: relative;
+  transition: all 0.4s;
+}
+
+.q-tile.found {
+  background: rgba(0,255,204,0.15);
+  border-color: var(--teal);
+  color: var(--teal);
+  box-shadow: 0 0 14px rgba(0,255,204,0.4);
+  animation: tealGlow 0.5s ease-out;
+}
+
+@keyframes tealGlow {
+  0% { transform: scale(1.15); box-shadow: 0 0 30px rgba(0,255,204,0.8); }
+  100% { transform: scale(1); box-shadow: 0 0 14px rgba(0,255,204,0.4); }
+}
+
+/* QUANTUM CONTROLS */
+.quantum-controls {
+  padding: 12px 16px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex-shrink: 0;
+  background: rgba(0,0,0,0.1);
+}
+
+/* ── OPTIMAL HINT BANNER ── */
+.optimal-hint-banner {
+  display: none;
+  background: rgba(0,229,255,0.04);
+  border: 1px solid rgba(0,229,255,0.2);
+  padding: 8px 12px;
+  border-radius: 2px;
+  gap: 0;
+}
+
+.optimal-hint-banner.show { display: block; }
+
+.ohb-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.ohb-formula {
+  font-size: 10px;
+  color: var(--cyan);
+  letter-spacing: 1px;
+}
+
+.ohb-progress-wrap {
+  flex: 1;
+  height: 4px;
+  background: var(--border);
+  position: relative;
+  overflow: hidden;
+}
+
+.ohb-progress-bar {
+  height: 100%;
+  background: var(--teal);
+  transition: width 0.4s ease, background 0.4s ease;
+  max-width: 100%;
+}
+
+.ohb-progress-bar.over { background: var(--red); }
+.ohb-progress-bar.near { background: var(--amber); }
+
+.ohb-label {
+  font-size: 9px;
+  color: var(--dim);
+  letter-spacing: 1px;
+  white-space: nowrap;
+}
+
+.ohb-count {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--teal);
+  white-space: nowrap;
+}
+
+.ohb-count.over { color: var(--red); }
+.ohb-count.near { color: var(--amber); }
+
+/* ── ITERATION COUNTER inside controls ── */
+.iter-counter-row {
+  display: none;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 0 2px;
+}
+.iter-counter-row.show { display: flex; }
+
+.iter-counter-label { font-size: 9px; color: var(--dim); letter-spacing: 2px; }
+.iter-counter-val { font-size: 14px; font-weight: 700; color: var(--teal); }
+.iter-counter-val.over { color: var(--red); }
+
+.q-btn {
+  padding: 9px 16px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-family: 'Space Mono', monospace;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: left;
+  position: relative;
+  overflow: hidden;
+}
+
+.q-btn::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: currentColor;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.q-btn:hover::before { opacity: 0.07; }
+.q-btn:active::before { opacity: 0.2; }
+
+.q-btn.oracle { border-color: var(--amber); color: var(--amber); }
+.q-btn.amplify { border-color: var(--teal); color: var(--teal); }
+.q-btn.measure-q { border-color: var(--cyan); color: var(--cyan); }
+
+.q-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+.q-btn .btn-hint {
+  display: block;
+  font-size: 9px;
+  font-weight: 400;
+  color: var(--dim);
+  letter-spacing: 0;
+  margin-top: 2px;
+}
+
+/* OVER-ROTATION WARNING */
+.overrot-warning {
+  background: rgba(239,68,68,0.08);
+  border: 1px solid rgba(239,68,68,0.25);
+  color: var(--red);
+  font-size: 10px;
+  padding: 6px 10px;
+  display: none;
+  line-height: 1.5;
+  animation: warningPulse 0.5s ease-in-out infinite alternate;
+}
+
+.overrot-warning.show { display: block; }
+
+@keyframes warningPulse { from { border-color: rgba(239,68,68,0.25); } to { border-color: rgba(239,68,68,0.6); } }
+
+/* PROBABILITY GRAPH PANEL */
+.graph-panel {
+  width: 200px;
+  border-left: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+}
+
+.graph-header {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.graph-title {
+  font-size: 9px;
+  color: var(--teal);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+
+.graph-canvas-wrap {
+  flex: 1;
+  padding: 8px;
+  position: relative;
+  min-height: 200px;
+}
+
+#probCanvas {
+  width: 100%;
+  height: 100%;
+}
+
+.graph-info {
+  padding: 8px 12px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.graph-stat {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.graph-stat-label { font-size: 9px; color: var(--dim); }
+.graph-stat-value { font-size: 11px; font-weight: 700; color: var(--teal); }
+
+/* RESULT OVERLAY */
+.result-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(4,6,13,0.88);
+  z-index: 200;
+  align-items: center;
+  justify-content: center;
+}
+.result-overlay.show { display: flex; }
+
+.result-box {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  padding: 32px 40px;
+  max-width: 500px;
+  width: 90%;
+  text-align: center;
+}
+
+.result-title {
+  font-family: 'Syne', sans-serif;
+  font-size: 26px;
+  font-weight: 800;
+  margin-bottom: 6px;
+}
+
+.result-subtitle { font-size: 12px; color: var(--dim); margin-bottom: 20px; letter-spacing: 1px; }
+
+.result-comparison {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.result-side {
+  border: 1px solid var(--border);
+  padding: 12px;
+}
+
+.result-agent { font-size: 9px; letter-spacing: 2px; color: var(--dim); margin-bottom: 6px; }
+.result-steps { font-size: 28px; font-weight: 700; }
+.result-steps.quantum { color: var(--teal); }
+.result-steps.classical { color: var(--amber); }
+
+.result-speedup {
+  background: rgba(0,255,204,0.05);
+  border: 1px solid rgba(0,255,204,0.2);
+  padding: 10px;
+  font-size: 11px;
+  color: var(--teal);
+  margin-bottom: 16px;
+  line-height: 1.6;
+}
+
+.result-lesson {
+  background: rgba(245,158,11,0.05);
+  border: 1px solid rgba(245,158,11,0.2);
+  padding: 10px;
+  font-size: 11px;
+  color: var(--amber);
+  margin-bottom: 20px;
+  text-align: left;
+  line-height: 1.6;
+}
+
+.result-btns { display: flex; gap: 10px; justify-content: center; }
+
+.r-btn {
+  padding: 9px 20px;
+  font-family: 'Space Mono', monospace;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: 1px solid;
+}
+
+.r-btn.primary { border-color: var(--cyan); color: var(--cyan); background: rgba(0,229,255,0.08); }
+.r-btn.secondary { border-color: var(--border); color: var(--dim); background: transparent; }
+.r-btn:hover { opacity: 0.8; }
+
+/* LEVEL DOTS */
+.level-dots { display: flex; gap: 4px; }
+.l-dot { width: 8px; height: 8px; border-radius: 50%; border: 1px solid var(--border); cursor: pointer; transition: all 0.3s; }
+.l-dot.active { background: var(--cyan); border-color: var(--cyan); box-shadow: 0 0 6px var(--cyan); }
+.l-dot.done { background: var(--teal); border-color: var(--teal); }
+
+/* OPTIMAL INDICATOR */
+.optimal-line-label {
+  font-size: 9px;
+  color: rgba(245,158,11,0.7);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.optimal-dash { width: 20px; height: 1px; background: var(--amber); border-top: 1px dashed var(--amber); }
+
+/* HIDDEN BARS (challenge mode) */
+.amp-bar-track.hidden-mode {
+  background: rgba(0,229,255,0.03);
+  border-color: rgba(26,37,64,0.5);
+}
+.amp-bar-track.hidden-mode .amp-bar {
+  background: rgba(26,37,64,0.3) !important;
+  box-shadow: none !important;
+}
+
+/* Iteration counter animation */
+@keyframes iterBump {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.3); color: var(--teal); }
+  100% { transform: scale(1); }
+}
+
+.iter-bump { animation: iterBump 0.3s ease-out; }
+
+/* MEASURE LOCKED hint */
+.measure-lock-hint {
+  font-size: 9px;
+  color: var(--dim);
+  letter-spacing: 1px;
+  padding: 4px 0 0;
+  text-align: center;
+  display: none;
+}
+.measure-lock-hint.show { display: block; }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <div style="display:flex;align-items:center;gap:12px;">
+    <div class="station-tag">STN 05</div>
+    <div class="station-title">GROVER'S HUNT</div>
+  </div>
+  <div class="level-dots" id="levelDots"></div>
+  <div style="display:flex;gap:8px;">
+    <button class="back-btn" onclick="goBackToLab()">◄ LAB</button>
+  </div>
+</div>
+
+<!-- CONTROL STRIP -->
+<div class="control-strip">
+  <div style="font-size:9px;color:var(--dim);letter-spacing:2px;">DIFFICULTY:</div>
+  <div class="level-selector" id="levelSelector"></div>
+  <div style="width:1px;height:20px;background:var(--border);"></div>
+  <div class="challenge-toggle" onclick="toggleChallenge()">
+    <div class="toggle-track" id="challengeToggle">
+      <div class="toggle-thumb"></div>
+    </div>
+    <div class="toggle-label" id="challengeLabel">CHALLENGE MODE</div>
+  </div>
+  <div style="flex:1;"></div>
+  <button class="start-btn" id="startBtn" onclick="startRace()">▶ START RACE</button>
+  <button class="back-btn" id="resetBtn" onclick="resetRace()" style="display:none;">↺ RESET</button>
+</div>
+
+<!-- STATUS BAR -->
+<div class="status-bar">
+  <div class="stat-item">
+    <div class="stat-label">N TILES</div>
+    <div class="stat-value" id="statN">8</div>
+  </div>
+  <div class="separator"></div>
+  <div class="stat-item">
+    <div class="stat-label">QUANTUM ITER</div>
+    <div class="stat-value" id="statIter">0</div>
+  </div>
+  <div class="separator"></div>
+  <div class="stat-item">
+    <div class="stat-label">OPTIMAL ⌊π/4·√N⌋</div>
+    <div class="stat-value" id="statOptimal">—</div>
+  </div>
+  <div class="separator"></div>
+  <div class="stat-item">
+    <div class="stat-label">MARKED PROB</div>
+    <div class="stat-value" id="statProb">—</div>
+  </div>
+  <div class="separator"></div>
+  <div class="stat-item">
+    <div class="stat-label">CLASSICAL STEPS</div>
+    <div class="stat-value" id="statClassical" style="color:var(--amber);">0</div>
+  </div>
+  <div class="separator"></div>
+  <div class="stat-item">
+    <div class="stat-label">PHASE</div>
+    <div class="stat-value" id="statPhase" style="color:var(--dim);font-size:10px;">READY</div>
+  </div>
+</div>
+
+<!-- RACE INDICATOR -->
+<div class="race-status" id="raceStatus">
+  <div class="race-indicator">
+    <div class="race-dot" id="raceDot"></div>
+    <div id="raceStatusText" style="font-size:10px;color:var(--dim);">Press START RACE to begin</div>
+  </div>
+  <div id="iterHint" style="font-size:10px;color:var(--dim);margin-left:auto;"></div>
+</div>
+
+<!-- MAIN AREA -->
+<div class="main-area">
+
+  <!-- CLASSICAL PANEL -->
+  <div class="grid-panel">
+    <div class="panel-header">
+      <div style="display:flex;align-items:center;gap:8px;">
+        <div class="panel-title" style="color:var(--amber);">CLASSICAL SEARCH</div>
+        <div class="panel-tag classical-tag">RANDOM WALK</div>
+      </div>
+      <div style="font-size:10px;color:var(--dim);">1 tile / 5s</div>
+    </div>
+    <div class="tile-grid-container">
+      <div class="tile-grid" id="classicalGrid"></div>
+    </div>
+  </div>
+
+  <!-- QUANTUM PANEL -->
+  <div class="grid-panel" style="border-right:1px solid var(--border);">
+    <div class="panel-header">
+      <div style="display:flex;align-items:center;gap:8px;">
+        <div class="panel-title" style="color:var(--teal);">QUANTUM SEARCH</div>
+        <div class="panel-tag quantum-tag">GROVER</div>
+      </div>
+      <div style="font-size:10px;color:var(--dim);">amplitude amplification</div>
+    </div>
+    <div class="tile-grid-container">
+      <div class="tile-grid" id="quantumGrid"></div>
+    </div>
+    <div class="quantum-controls">
+
+      <!-- OPTIMAL HINT BANNER — always visible once race starts -->
+      <div class="optimal-hint-banner" id="optimalHintBanner">
+        <div class="ohb-row" style="margin-bottom:6px;">
+          <div class="ohb-formula" id="ohbFormula">Optimal: ⌊π/4·√N⌋ = — iterations</div>
+          <div class="ohb-count" id="ohbCount">0 / —</div>
+        </div>
+        <div class="ohb-row" style="gap:8px;">
+          <div class="ohb-label">progress</div>
+          <div class="ohb-progress-wrap">
+            <div class="ohb-progress-bar" id="ohbBar" style="width:0%"></div>
+          </div>
+          <div class="ohb-label" id="ohbStatus">BUILDING UP</div>
+        </div>
+      </div>
+
+      <div class="overrot-warning" id="overRotWarning">
+        ⚠ OVER-ROTATION: You've exceeded the optimal iteration count. The target amplitude is DECREASING. Measuring now risks a wrong answer.
+      </div>
+
+      <button class="q-btn oracle" id="oracleBtn" onclick="applyOracle()" disabled>
+        1. APPLY ORACLE
+        <span class="btn-hint">Phase-flip the marked tile's amplitude</span>
+      </button>
+      <button class="q-btn amplify" id="amplifyBtn" onclick="applyAmplify()" disabled>
+        2. AMPLIFY (DIFFUSE)
+        <span class="btn-hint">Grover diffusion: 2·mean − amplitude[i]</span>
+      </button>
+      <button class="q-btn measure-q" id="measureBtn" onclick="applyMeasure()" disabled>
+        3. MEASURE
+        <span class="btn-hint" id="measureHint">Complete ⌊π/4·√N⌋ iterations first</span>
+      </button>
+      <div class="measure-lock-hint" id="measureLockHint">MEASURE unlocks after <span id="measureLockCount">?</span> Oracle→Amplify cycles</div>
+    </div>
+  </div>
+
+  <!-- PROBABILITY GRAPH PANEL -->
+  <div class="graph-panel">
+    <div class="graph-header">
+      <div class="graph-title">PROBABILITY GRAPH</div>
+      <div style="font-size:9px;color:var(--dim);margin-top:3px;">marked tile amplitude over iterations</div>
+    </div>
+    <div class="graph-canvas-wrap">
+      <canvas id="probCanvas"></canvas>
+    </div>
+    <div class="graph-info">
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">
+        <div class="optimal-dash"></div>
+        <div class="optimal-line-label">optimal point</div>
+      </div>
+      <div class="graph-stat">
+        <div class="graph-stat-label">CURRENT PROB</div>
+        <div class="graph-stat-value" id="graphProb">—</div>
+      </div>
+      <div class="graph-stat">
+        <div class="graph-stat-label">PEAK PROB</div>
+        <div class="graph-stat-value" id="graphPeak">—</div>
+      </div>
+      <div class="graph-stat" id="iterInfo">
+        <div class="graph-stat-label">ITER / OPT</div>
+        <div class="graph-stat-value" id="graphIterOpt">—</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- RESULT OVERLAY -->
+<div class="result-overlay" id="resultOverlay">
+  <div class="result-box">
+    <div class="result-title" id="resultTitle">RACE COMPLETE</div>
+    <div class="result-subtitle" id="resultSubtitle">QUANTUM vs CLASSICAL</div>
+    <div class="result-comparison">
+      <div class="result-side">
+        <div class="result-agent">QUANTUM</div>
+        <div class="result-steps quantum" id="rQuantumSteps">—</div>
+        <div style="font-size:9px;color:var(--dim);margin-top:3px;">iterations</div>
+      </div>
+      <div class="result-side">
+        <div class="result-agent">CLASSICAL</div>
+        <div class="result-steps classical" id="rClassicalSteps">—</div>
+        <div style="font-size:9px;color:var(--dim);margin-top:3px;">steps</div>
+      </div>
+    </div>
+    <div class="result-speedup" id="resultSpeedup"></div>
+    <div class="result-lesson" id="resultLesson"></div>
+    <div class="result-btns">
+      <button class="r-btn primary" onclick="resetRace();closeResult();">PLAY AGAIN</button>
+      <button class="r-btn secondary" onclick="closeResult()">REVIEW</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// CONFIG
+// ============================================================
+const LEVEL_CONFIGS = [
+  { level: 1, N: 8,  showOptimal: true,  label: 'LVL 1\nN=8' },
+  { level: 2, N: 16, showOptimal: false, label: 'LVL 2\nN=16' },
+  { level: 3, N: 32, showOptimal: false, label: 'LVL 3\nN=32' },
+  { level: 4, N: 64, showOptimal: false, label: 'LVL 4\nN=64' },
+];
+
+const CLASSICAL_INTERVAL = 3000; // ms per classical step
+
+// ============================================================
+// STATE
+// ============================================================
+const gs = {
+  level: 1,
+  N: 8,
+  challengeMode: false,
+  markedTile: 0,
+  amplitudes: [],
+  iterations: 0,
+  optimalIter: 0,
+  raceStarted: false,
+  raceOver: false,
+  classicalSteps: 0,
+  classicalChecked: new Set(),
+  classicalTimer: null,
+  classicalFound: false,
+  quantumFound: false,
+  quantumSteps: 0,
+  // Phase tracking: true = oracle needed next; false = oracle done, can diffuse
+  phaseNeedsOracle: true,
+  oracleApplied: false,
+  probHistory: [],
+  peakProb: 0,
+  peakIter: 0,
+  completedLevels: new Set(),
+};
+
+// ============================================================
+// GROVER MATH
+// ============================================================
+function initAmplitudes(N) {
+  return Array(N).fill(1 / Math.sqrt(N));
+}
+
+function applyOracleMath(amps, marked) {
+  const a = [...amps];
+  a[marked] = -Math.abs(a[marked]);
+  return a;
+}
+
+function applyDiffusion(amps) {
+  const mean = amps.reduce((s, v) => s + v, 0) / amps.length;
+  return amps.map(v => 2 * mean - v);
+}
+
+function getOptimalIter(N) {
+  return Math.floor(Math.PI / 4 * Math.sqrt(N));
+}
+
+function getSuccessProb(amps, marked) {
+  return amps[marked] * amps[marked];
+}
+
+// ============================================================
+// BUILD GRIDS
+// ============================================================
+function buildGrids() {
+  const N = gs.N;
+  const cols = Math.ceil(Math.sqrt(N));
+
+  const cg = document.getElementById('classicalGrid');
+  cg.innerHTML = '';
+  cg.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+  for (let i = 0; i < N; i++) {
+    const tile = document.createElement('div');
+    tile.className = 'c-tile';
+    tile.id = `ct${i}`;
+    tile.textContent = (i + 1).toString().padStart(2, '0');
+    cg.appendChild(tile);
+  }
+
+  const qg = document.getElementById('quantumGrid');
+  qg.innerHTML = '';
+  qg.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+  for (let i = 0; i < N; i++) {
+    const wrap = document.createElement('div');
+    wrap.className = 'q-tile-wrap';
+    wrap.style.gap = '1px';
+
+    const barTrack = document.createElement('div');
+    barTrack.className = 'amp-bar-track';
+    barTrack.id = `qt-bar-track${i}`;
+    barTrack.style.height = N <= 16 ? '40px' : N <= 32 ? '32px' : '24px';
+
+    const bar = document.createElement('div');
+    bar.className = 'amp-bar';
+    bar.id = `qt-bar${i}`;
+    barTrack.appendChild(bar);
+
+    const tile = document.createElement('div');
+    tile.className = 'q-tile';
+    tile.id = `qt${i}`;
+    tile.style.minHeight = N <= 16 ? '26px' : '20px';
+    tile.style.fontSize = N <= 16 ? '10px' : '9px';
+    tile.textContent = (i + 1).toString().padStart(2, '0');
+
+    wrap.appendChild(barTrack);
+    wrap.appendChild(tile);
+    qg.appendChild(wrap);
+  }
+}
+
+function renderAmplitudes() {
+  const N = gs.N;
+  const amps = gs.amplitudes;
+  const maxAmp = Math.max(...amps.map(Math.abs));
+  const barHeight = N <= 16 ? 40 : N <= 32 ? 32 : 24;
+  const isChallenge = gs.challengeMode;
+
+  for (let i = 0; i < N; i++) {
+    const bar = document.getElementById(`qt-bar${i}`);
+    const track = document.getElementById(`qt-bar-track${i}`);
+    if (!bar || !track) continue;
+
+    if (isChallenge) {
+      track.classList.add('hidden-mode');
+      bar.style.height = '100%';
+      continue;
+    }
+
+    track.classList.remove('hidden-mode');
+    const amp = amps[i];
+    const absAmp = Math.abs(amp);
+    const frac = maxAmp > 0 ? absAmp / maxAmp : 0;
+    const px = Math.max(1, frac * barHeight);
+
+    bar.style.height = px + 'px';
+    bar.classList.remove('negative', 'marked', 'oracle-flash');
+
+    if (amp < -0.001) {
+      bar.classList.add('negative');
+    } else if (i === gs.markedTile && gs.oracleApplied) {
+      bar.classList.add('marked');
+    }
+  }
+}
+
+// ============================================================
+// OPTIMAL HINT BANNER UPDATE
+// ============================================================
+function updateOptimalBanner() {
+  const banner = document.getElementById('optimalHintBanner');
+  const formula = document.getElementById('ohbFormula');
+  const count = document.getElementById('ohbCount');
+  const bar = document.getElementById('ohbBar');
+  const status = document.getElementById('ohbStatus');
+
+  if (!gs.raceStarted) {
+    banner.classList.remove('show');
+    return;
+  }
+
+  banner.classList.add('show');
+
+  const opt = gs.optimalIter;
+  const iter = gs.iterations;
+  const showOpt = LEVEL_CONFIGS[gs.level - 1].showOptimal || !gs.challengeMode;
+
+  // Formula display
+  const optDisplay = gs.challengeMode ? '???' : (showOpt ? opt : `⌊π/4·√${gs.N}⌋`);
+  formula.textContent = `Optimal: ⌊π/4·√${gs.N}⌋ = ${gs.challengeMode ? '???' : opt} iteration${opt !== 1 ? 's' : ''}`;
+
+  // Count display
+  const countStr = `${iter} / ${gs.challengeMode ? '???' : opt}`;
+  count.textContent = countStr;
+
+  // Progress bar
+  const pct = opt > 0 ? Math.min((iter / opt) * 100, 150) : 0;
+  bar.style.width = Math.min(pct, 100) + '%';
+
+  // Status text + colours
+  if (iter === 0) {
+    bar.className = 'ohb-progress-bar';
+    count.className = 'ohb-count';
+    status.textContent = 'NOT STARTED';
+    status.style.color = 'var(--dim)';
+  } else if (iter < opt) {
+    bar.className = 'ohb-progress-bar';
+    count.className = 'ohb-count';
+    status.textContent = 'BUILDING UP ↑';
+    status.style.color = 'var(--teal)';
+  } else if (iter === opt) {
+    bar.className = 'ohb-progress-bar near';
+    count.className = 'ohb-count near';
+    status.textContent = '★ MEASURE NOW!';
+    status.style.color = 'var(--amber)';
+    // Pulse animation
+    count.style.animation = 'none';
+    void count.offsetWidth;
+    count.style.animation = 'iterBump 0.4s ease-out';
+  } else {
+    bar.className = 'ohb-progress-bar over';
+    count.className = 'ohb-count over';
+    status.textContent = '⚠ OVER-ROTATED ↓';
+    status.style.color = 'var(--red)';
+  }
+}
+
+// ============================================================
+// RACE LOGIC
+// ============================================================
+function startRace() {
+  if (gs.raceStarted) return;
+
+  gs.raceStarted = true;
+  gs.raceOver = false;
+  gs.classicalSteps = 0;
+  gs.classicalChecked = new Set();
+  gs.classicalFound = false;
+  gs.quantumFound = false;
+  gs.quantumSteps = 0;
+  gs.iterations = 0;
+  gs.phaseNeedsOracle = true;
+  gs.oracleApplied = false;
+  gs.probHistory = [];
+  gs.peakProb = 0;
+  gs.peakIter = 0;
+
+  gs.markedTile = Math.floor(Math.random() * gs.N);
+  gs.amplitudes = initAmplitudes(gs.N);
+  gs.optimalIter = getOptimalIter(gs.N);
+
+  document.getElementById('statN').textContent = gs.N;
+  document.getElementById('statIter').textContent = '0';
+  document.getElementById('statPhase').textContent = 'APPLY ORACLE';
+  document.getElementById('statPhase').style.color = 'var(--amber)';
+
+  const showOpt = LEVEL_CONFIGS[gs.level - 1].showOptimal;
+  document.getElementById('statOptimal').textContent = showOpt ? gs.optimalIter.toString() : '???';
+
+  updateProbDisplay();
+  updateOptimalBanner();
+
+  document.getElementById('startBtn').disabled = true;
+  document.getElementById('resetBtn').style.display = 'block';
+
+  // Enable quantum buttons
+  document.getElementById('oracleBtn').disabled = false;
+  document.getElementById('amplifyBtn').disabled = true; // oracle first
+  document.getElementById('measureBtn').disabled = true; // needs >=1 iteration
+  document.getElementById('measureHint').textContent = 'Complete at least 1 Oracle→Amplify first';
+  document.getElementById('measureHint').style.color = 'var(--dim)';
+  document.getElementById('measureLockHint').classList.remove('show');
+
+  document.getElementById('raceDot').className = 'race-dot active';
+  document.getElementById('raceStatusText').textContent = 'Race in progress — iterate Grover steps, then Measure';
+  document.getElementById('raceStatusText').style.color = 'var(--teal)';
+
+  if (gs.challengeMode) {
+    document.getElementById('iterHint').textContent = `CHALLENGE: N=${gs.N} — estimate optimal iterations`;
+  } else if (showOpt) {
+    document.getElementById('iterHint').textContent = `Optimal: ${gs.optimalIter} iteration${gs.optimalIter !== 1 ? 's' : ''}`;
+  } else {
+    document.getElementById('iterHint').textContent = `Optimal: ⌊π/4·√${gs.N}⌋ iterations`;
+  }
+
+  renderAmplitudes();
+  renderProbGraph();
+
+  gs.classicalTimer = setInterval(classicalStep, CLASSICAL_INTERVAL);
+}
+
+function classicalStep() {
+  if (gs.raceOver) return;
+
+  const N = gs.N;
+  const unchecked = [];
+  for (let i = 0; i < N; i++) {
+    if (!gs.classicalChecked.has(i)) unchecked.push(i);
+  }
+  if (unchecked.length === 0) return;
+
+  const pick = unchecked[Math.floor(Math.random() * unchecked.length)];
+  gs.classicalChecked.add(pick);
+  gs.classicalSteps++;
+
+  document.querySelectorAll('.c-tile.current').forEach(t => t.classList.remove('current'));
+
+  const tile = document.getElementById(`ct${pick}`);
+  if (tile) {
+    if (pick === gs.markedTile) {
+      tile.classList.add('found');
+      tile.textContent = '★';
+      gs.classicalFound = true;
+      document.getElementById('statClassical').textContent = gs.classicalSteps;
+      if (!gs.quantumFound) classicalWins();
+    } else {
+      tile.classList.add('checked');
+      tile.classList.add('current');
+    }
+  }
+
+  document.getElementById('statClassical').textContent = gs.classicalSteps;
+}
+
+// ============================================================
+// QUANTUM CONTROLS
+// ============================================================
+
+function applyOracle() {
+  if (!gs.raceStarted || gs.raceOver) return;
+  if (!gs.phaseNeedsOracle) return;
+
+  gs.amplitudes = applyOracleMath(gs.amplitudes, gs.markedTile);
+  gs.oracleApplied = true;
+  gs.phaseNeedsOracle = false;
+
+  const bar = document.getElementById(`qt-bar${gs.markedTile}`);
+  if (bar) bar.classList.add('oracle-flash');
+
+  renderAmplitudes();
+  _updatePhaseButtons();
+  document.getElementById('statPhase').textContent = 'AMPLIFY';
+  document.getElementById('statPhase').style.color = 'var(--teal)';
+}
+
+function applyAmplify() {
+  if (!gs.raceStarted || gs.raceOver) return;
+  if (gs.phaseNeedsOracle) return; // must apply oracle first
+
+  gs.amplitudes = applyDiffusion(gs.amplitudes);
+  gs.iterations++;
+  gs.phaseNeedsOracle = true;
+
+  _afterIteration();
+}
+
+function _afterIteration() {
+  const prob = getSuccessProb(gs.amplitudes, gs.markedTile);
+  gs.probHistory.push({ iter: gs.iterations, prob });
+
+  if (prob > gs.peakProb) {
+    gs.peakProb = prob;
+    gs.peakIter = gs.iterations;
+  }
+
+  renderAmplitudes();
+  updateProbDisplay();
+  renderProbGraph();
+  updateOptimalBanner();
+
+  // Animate iteration counter
+  const iterEl = document.getElementById('statIter');
+  iterEl.textContent = gs.iterations;
+  iterEl.classList.remove('iter-bump');
+  void iterEl.offsetWidth;
+  iterEl.classList.add('iter-bump');
+
+  const isOverRotated = gs.iterations > gs.optimalIter;
+  document.getElementById('overRotWarning').classList.toggle('show', isOverRotated);
+
+  const phaseText = isOverRotated ? 'OVER-ROTATED — MEASURE!' : 'ORACLE / MEASURE';
+  document.getElementById('statPhase').textContent = phaseText;
+  document.getElementById('statPhase').style.color = isOverRotated ? 'var(--red)' : 'var(--amber)';
+
+  _updatePhaseButtons();
+}
+
+function _updatePhaseButtons() {
+  if (!gs.raceStarted || gs.raceOver) return;
+  const opt = gs.optimalIter;
+  const iter = gs.iterations;
+
+  document.getElementById('oracleBtn').disabled = !gs.phaseNeedsOracle;
+  document.getElementById('amplifyBtn').disabled = gs.phaseNeedsOracle;
+
+  // Measure unlocks after at least 1 full iteration
+  const measureReady = iter >= 1;
+  document.getElementById('measureBtn').disabled = !measureReady;
+
+  const hintEl = document.getElementById('measureHint');
+  const lockEl = document.getElementById('measureLockHint');
+  const lockCountEl = document.getElementById('measureLockCount');
+
+  if (!measureReady) {
+    hintEl.textContent = 'Complete at least 1 Oracle→Amplify first';
+    hintEl.style.color = 'var(--dim)';
+    lockCountEl.textContent = opt;
+    lockEl.classList.add('show');
+  } else if (iter < opt) {
+    const remaining = opt - iter;
+    hintEl.textContent = `${remaining} more cycle${remaining !== 1 ? 's' : ''} for optimal (${iter}/${opt})`;
+    hintEl.style.color = 'var(--dim)';
+    lockEl.classList.remove('show');
+  } else if (iter === opt) {
+    hintEl.textContent = `★ Optimal! Measure now for best result`;
+    hintEl.style.color = 'var(--teal)';
+    lockEl.classList.remove('show');
+  } else {
+    hintEl.textContent = `⚠ Over-rotated (${iter}/${opt}) — probability falling!`;
+    hintEl.style.color = 'var(--red)';
+    lockEl.classList.remove('show');
+  }
+}
+
+function applyMeasure() {
+  if (!gs.raceStarted || gs.raceOver) return;
+
+  const opt = gs.optimalIter;
+  const iter = gs.iterations;
+
+  // Correct answer ONLY if iterations == optimal exactly
+  const quantumCorrect = (iter === opt);
+
+  gs.quantumSteps = iter;
+  gs.raceOver = true;
+  clearInterval(gs.classicalTimer);
+
+  document.getElementById('oracleBtn').disabled = true;
+  document.getElementById('amplifyBtn').disabled = true;
+  document.getElementById('measureBtn').disabled = true;
+
+  if (quantumCorrect) {
+    gs.quantumFound = true;
+    const foundTile = document.getElementById(`qt${gs.markedTile}`);
+    const foundBar = document.getElementById(`qt-bar${gs.markedTile}`);
+    if (foundTile) foundTile.classList.add('found');
+    if (foundBar) foundBar.style.background = 'linear-gradient(to top, var(--teal), rgba(0,255,204,0.8))';
+    showResult(true);
+  } else {
+    // Force a wrong tile — pick a random tile that is NOT the marked one
+    const wrongOptions = [];
+    for (let i = 0; i < gs.N; i++) { if (i !== gs.markedTile) wrongOptions.push(i); }
+    const wrongTileIdx = wrongOptions[Math.floor(Math.random() * wrongOptions.length)];
+
+    const wrongTileEl = document.getElementById(`qt${wrongTileIdx}`);
+    const correctTileEl = document.getElementById(`qt${gs.markedTile}`);
+    if (wrongTileEl) { wrongTileEl.style.borderColor = 'var(--red)'; wrongTileEl.style.color = 'var(--red)'; }
+    if (correctTileEl) correctTileEl.classList.add('found');
+    showResult(false, iter < opt ? 'too_early' : 'over_rotation');
+  }
+
+  document.getElementById('raceDot').className = 'race-dot done-q';
+  document.getElementById('raceStatusText').textContent = gs.quantumFound ? 'Quantum found it!' : 'Quantum missed!';
+  document.getElementById('raceStatusText').style.color = gs.quantumFound ? 'var(--teal)' : 'var(--red)';
+}
+
+function classicalWins() {
+  gs.raceOver = true;
+  clearInterval(gs.classicalTimer);
+
+  document.getElementById('oracleBtn').disabled = true;
+  document.getElementById('amplifyBtn').disabled = true;
+  document.getElementById('measureBtn').disabled = true;
+
+  document.getElementById('raceDot').className = 'race-dot done-c';
+  document.getElementById('raceStatusText').textContent = 'Classical found it first!';
+  document.getElementById('raceStatusText').style.color = 'var(--amber)';
+
+  const qTile = document.getElementById(`qt${gs.markedTile}`);
+  if (qTile) {
+    qTile.style.borderColor = 'var(--amber)';
+    qTile.style.color = 'var(--amber)';
+  }
+
+  gs.quantumFound = false;
+  gs.quantumSteps = gs.iterations;
+  showResult(false, 'classical_wins');
+}
+
+function showResult(quantumWon, reason) {
+  const N = gs.N;
+  const qSteps = gs.quantumSteps;
+  const cSteps = gs.classicalSteps;
+  const opt = gs.optimalIter;
+
+  document.getElementById('rQuantumSteps').textContent = qSteps;
+  document.getElementById('rClassicalSteps').textContent = cSteps;
+
+  if (reason === 'classical_wins') {
+    document.getElementById('resultTitle').textContent = 'CLASSICAL WINS';
+    document.getElementById('resultTitle').style.color = 'var(--amber)';
+    document.getElementById('resultSubtitle').textContent = 'TOO SLOW — MEASURE BEFORE CLASSICAL FINISHES';
+    document.getElementById('resultSpeedup').innerHTML =
+      `Classical found the target in <strong style="color:var(--amber)">${cSteps} steps</strong>. You had completed <strong style="color:var(--teal)">${qSteps} iteration${qSteps !== 1 ? 's' : ''}</strong> but didn't measure in time. The optimal quantum strategy needs only ${opt} iteration${opt !== 1 ? 's' : ''}.`;
+    document.getElementById('resultLesson').innerHTML =
+      `⚡ Apply ⌊π/4·√N⌋ = ${opt} Grover iterations, then MEASURE before classical finishes. At N=${N}, optimal gives ~${((1 - 1/N)*100).toFixed(0)}% success probability.`;
+  } else if (!quantumWon) {
+    const finalProb = (getSuccessProb(gs.amplitudes, gs.markedTile) * 100).toFixed(1);
+    const peakPct = (gs.peakProb * 100).toFixed(1);
+    if (reason === 'over_rotation') {
+      document.getElementById('resultTitle').textContent = 'OVER-ROTATION FAILURE';
+      document.getElementById('resultTitle').style.color = 'var(--red)';
+      document.getElementById('resultSubtitle').textContent = 'YOU HAD IT — THEN LOST IT';
+      document.getElementById('resultSpeedup').innerHTML =
+        `You applied <strong style="color:var(--red)">${gs.iterations} iterations</strong> — the optimal was ${opt}. The marked tile peaked at ${peakPct}% then fell back to ${finalProb}% when you measured.`;
+      document.getElementById('resultLesson').innerHTML =
+        `⚠ OVER-ROTATION: Extra iterations rotate PAST the solution — amplitude oscillates back down. Stop at ⌊π/4·√N⌋ = ${opt} iteration${opt !== 1 ? 's' : ''} for maximum success probability. The graph shows this rise-then-fall behaviour.`;
+    } else {
+      // too_early
+      document.getElementById('resultTitle').textContent = 'MEASURED TOO EARLY';
+      document.getElementById('resultTitle').style.color = 'var(--red)';
+      document.getElementById('resultSubtitle').textContent = 'NOT ENOUGH AMPLIFICATION';
+      document.getElementById('resultSpeedup').innerHTML =
+        `You measured after only <strong style="color:var(--red)">${gs.iterations} iteration${gs.iterations !== 1 ? 's' : ''}</strong>. The marked tile's probability was only ${finalProb}% — not high enough. Optimal is ${opt} iteration${opt !== 1 ? 's' : ''}.`;
+      document.getElementById('resultLesson').innerHTML =
+        `⚡ Complete exactly ${opt} Grover cycle${opt !== 1 ? 's' : ''} (Oracle → Amplify) before measuring. The graph rises to its peak at iteration ${opt} — that's when to MEASURE.`;
+    }
+  } else {
+    const faster = cSteps > qSteps;
+    document.getElementById('resultTitle').textContent = faster ? 'QUANTUM WINS' : 'QUANTUM FOUND IT';
+    document.getElementById('resultTitle').style.color = 'var(--teal)';
+    document.getElementById('resultSubtitle').textContent = faster ? 'QUANTUM SEARCH IS FASTER' : 'RACE COMPLETE';
+
+    if (faster && cSteps > 0) {
+      const speedup = (cSteps / Math.max(qSteps, 1)).toFixed(1);
+      document.getElementById('resultSpeedup').innerHTML =
+        `Quantum found it in <strong style="color:var(--teal)">${qSteps} iteration${qSteps !== 1 ? 's' : ''}</strong>. Classical used <strong style="color:var(--amber)">${cSteps} steps</strong>. That's a <strong style="color:var(--teal)">${speedup}× speedup</strong> — matching the √${N} ≈ ${Math.sqrt(N).toFixed(1)} quadratic advantage.`;
+    } else {
+      document.getElementById('resultSpeedup').innerHTML =
+        `Quantum found it in <strong style="color:var(--teal)">${qSteps} iteration${qSteps !== 1 ? 's' : ''}</strong>. Peak success probability: ${(gs.peakProb * 100).toFixed(1)}%.`;
+    }
+    document.getElementById('resultLesson').innerHTML =
+      `⚡ QUADRATIC SPEEDUP: Classical search averages N/2 = ${N/2} steps. Grover's needs only √N ≈ ${Math.sqrt(N).toFixed(1)} iterations. At N=64 that's ~8 vs ~32 — a gap that grows with problem size.`;
+  }
+
+  gs.completedLevels.add(gs.level);
+  updateLevelDots();
+  setTimeout(() => { document.getElementById('resultOverlay').classList.add('show'); }, 600);
+}
+
+function closeResult() {
+  document.getElementById('resultOverlay').classList.remove('show');
+}
+
+// ============================================================
+// PROBABILITY GRAPH
+// ============================================================
+function renderProbGraph() {
+  const canvas = document.getElementById('probCanvas');
+  const rect = canvas.parentElement.getBoundingClientRect();
+  canvas.width = rect.width || 180;
+  canvas.height = rect.height || 200;
+  const w = canvas.width, h = canvas.height;
+  const ctx = canvas.getContext('2d');
+
+  ctx.clearRect(0, 0, w, h);
+
+  const pad = { top: 10, right: 10, bottom: 24, left: 32 };
+  const gw = w - pad.left - pad.right;
+  const gh = h - pad.top - pad.bottom;
+
+  // Background
+  ctx.fillStyle = 'rgba(0,0,0,0.2)';
+  ctx.fillRect(pad.left, pad.top, gw, gh);
+
+  // Grid lines
+  ctx.strokeStyle = 'rgba(26,37,64,0.8)';
+  ctx.lineWidth = 1;
+  for (let p = 0; p <= 1; p += 0.25) {
+    const y = pad.top + gh * (1 - p);
+    ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(pad.left + gw, y); ctx.stroke();
+  }
+
+  // Show predicted full curve (light dotted) so user sees the rise-then-fall shape
+  const N = gs.N;
+  if (gs.raceStarted && gs.optimalIter > 0) {
+    const maxIter = Math.max(gs.optimalIter * 2 + 2, gs.iterations + 2);
+    const previewPoints = Math.max(maxIter * 2, 60);
+
+    // Simulate amplitude for preview
+    let simAmps = initAmplitudes(N);
+    const previewHistory = [{ iter: 0, prob: getSuccessProb(simAmps, 0) }];
+    for (let k = 1; k <= maxIter; k++) {
+      simAmps = applyOracleMath(simAmps, 0); // oracle on tile 0 (just for shape)
+      simAmps = applyDiffusion(simAmps);
+      previewHistory.push({ iter: k, prob: getSuccessProb(simAmps, 0) });
+    }
+
+    ctx.setLineDash([2, 4]);
+    ctx.strokeStyle = 'rgba(0,255,204,0.15)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    previewHistory.forEach(({ iter, prob }, i) => {
+      const x = pad.left + (iter / maxIter) * gw;
+      const y = pad.top + gh * (1 - Math.min(prob, 1));
+      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    });
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  // X range
+  const maxIter2 = Math.max((gs.optimalIter || 1) * 2, gs.iterations + 1, 4);
+
+  // Optimal iteration vertical line
+  const optX = gs.optimalIter > 0
+    ? pad.left + (gs.optimalIter / maxIter2) * gw
+    : pad.left + gw * 0.5;
+
+  ctx.setLineDash([4, 4]);
+  ctx.strokeStyle = 'rgba(245,158,11,0.6)';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(optX, pad.top);
+  ctx.lineTo(optX, pad.top + gh);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Plot actual history
+  if (gs.probHistory.length > 0) {
+    ctx.strokeStyle = '#00ffcc';
+    ctx.lineWidth = 2;
+    ctx.shadowColor = '#00ffcc';
+    ctx.shadowBlur = 4;
+    ctx.beginPath();
+    ctx.moveTo(pad.left, pad.top + gh * (1 - initProb()));
+
+    gs.probHistory.forEach(({ iter, prob }) => {
+      const x = pad.left + (iter / maxIter2) * gw;
+      const y = pad.top + gh * (1 - Math.min(prob, 1));
+      ctx.lineTo(x, y);
+    });
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+
+    // Dot at current position
+    const last = gs.probHistory[gs.probHistory.length - 1];
+    const lx = pad.left + (last.iter / maxIter2) * gw;
+    const ly = pad.top + gh * (1 - Math.min(last.prob, 1));
+    const isDecaying = last.iter > gs.optimalIter;
+    ctx.beginPath();
+    ctx.arc(lx, ly, 4, 0, Math.PI * 2);
+    ctx.fillStyle = isDecaying ? '#ef4444' : '#00ffcc';
+    ctx.fill();
+
+    // Peak marker
+    if (gs.peakIter > 0 && gs.iterations > gs.optimalIter) {
+      const px2 = pad.left + (gs.peakIter / maxIter2) * gw;
+      const py2 = pad.top + gh * (1 - Math.min(gs.peakProb, 1));
+      ctx.beginPath();
+      ctx.arc(px2, py2, 3, 0, Math.PI * 2);
+      ctx.fillStyle = 'var(--amber)';
+      ctx.fill();
+    }
+  }
+
+  // Y axis labels
+  ctx.fillStyle = '#6b7a94';
+  ctx.font = '8px Space Mono';
+  ctx.textAlign = 'right';
+  for (let p = 0; p <= 1; p += 0.25) {
+    const y = pad.top + gh * (1 - p) + 3;
+    ctx.fillText((p * 100).toFixed(0) + '%', pad.left - 3, y);
+  }
+
+  // X axis labels
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#6b7a94';
+  ctx.fillText('0', pad.left, pad.top + gh + 14);
+  if (gs.optimalIter > 0) {
+    ctx.fillText(gs.optimalIter, optX, pad.top + gh + 14);
+    ctx.fillStyle = 'rgba(245,158,11,0.8)';
+    ctx.fillText('★', optX, pad.top - 2);
+  }
+}
+
+function initProb() {
+  return 1 / gs.N;
+}
+
+function updateProbDisplay() {
+  const prob = gs.raceStarted ? getSuccessProb(gs.amplitudes, gs.markedTile) : null;
+  const probText = prob !== null ? (prob * 100).toFixed(1) + '%' : '—';
+  document.getElementById('statProb').textContent = probText;
+  document.getElementById('graphProb').textContent = probText;
+  document.getElementById('graphPeak').textContent = gs.peakProb > 0 ? (gs.peakProb * 100).toFixed(1) + '%' : '—';
+  document.getElementById('graphIterOpt').textContent = gs.iterations > 0 ? `${gs.iterations} / ${gs.optimalIter}` : '—';
+
+  if (prob !== null) {
+    const iter = gs.iterations;
+    const opt = gs.optimalIter;
+    const el = document.getElementById('statProb');
+    if (iter > opt && prob < gs.peakProb * 0.85) {
+      el.className = 'stat-value danger';
+    } else if (iter >= opt) {
+      el.className = 'stat-value warn';
+    } else {
+      el.className = 'stat-value';
+    }
+  }
+}
+
+// ============================================================
+// RESET / LEVEL SETUP
+// ============================================================
+function resetRace() {
+  clearInterval(gs.classicalTimer);
+  gs.raceStarted = false;
+  gs.raceOver = false;
+  gs.classicalSteps = 0;
+  gs.iterations = 0;
+  gs.probHistory = [];
+  gs.peakProb = 0;
+  gs.peakIter = 0;
+  gs.oracleApplied = false;
+  gs.phaseNeedsOracle = true;
+
+  gs.amplitudes = initAmplitudes(gs.N);
+
+  buildGrids();
+  renderAmplitudes();
+  renderProbGraph();
+
+  document.getElementById('startBtn').disabled = false;
+  document.getElementById('resetBtn').style.display = 'none';
+  document.getElementById('oracleBtn').disabled = true;
+  document.getElementById('amplifyBtn').disabled = true;
+  document.getElementById('measureBtn').disabled = true;
+  document.getElementById('measureLockHint').classList.remove('show');
+  document.getElementById('overRotWarning').classList.remove('show');
+  document.getElementById('statIter').textContent = '0';
+  document.getElementById('statClassical').textContent = '0';
+  document.getElementById('statProb').textContent = '—';
+  document.getElementById('statProb').className = 'stat-value';
+  document.getElementById('statPhase').textContent = 'READY';
+  document.getElementById('statPhase').style.color = 'var(--dim)';
+  document.getElementById('raceDot').className = 'race-dot';
+  document.getElementById('raceStatusText').textContent = 'Press START RACE to begin';
+  document.getElementById('raceStatusText').style.color = 'var(--dim)';
+  document.getElementById('graphProb').textContent = '—';
+  document.getElementById('graphPeak').textContent = '—';
+  document.getElementById('graphIterOpt').textContent = '—';
+  document.getElementById('iterHint').textContent = '';
+
+  document.getElementById('optimalHintBanner').classList.remove('show');
+}
+
+function setLevel(level) {
+  clearInterval(gs.classicalTimer);
+  gs.classicalTimer = null;
+
+  const cfg = LEVEL_CONFIGS[level - 1];
+  gs.level = level;
+  gs.N = cfg.N;
+  gs.challengeMode = false;
+  document.getElementById('challengeToggle').classList.remove('on');
+
+  document.querySelectorAll('.level-btn').forEach((btn, i) => {
+    btn.classList.toggle('active', i + 1 === level);
+  });
+
+  document.getElementById('statN').textContent = gs.N;
+  const opt = getOptimalIter(gs.N);
+  document.getElementById('statOptimal').textContent = cfg.showOptimal ? opt : '???';
+
+  resetRace();
+}
+
+function toggleChallenge() {
+  clearInterval(gs.classicalTimer);
+  gs.classicalTimer = null;
+
+  gs.challengeMode = !gs.challengeMode;
+  document.getElementById('challengeToggle').classList.toggle('on', gs.challengeMode);
+  if (gs.challengeMode) {
+    gs.N = 64;
+    document.querySelectorAll('.level-btn').forEach(b => b.classList.remove('active'));
+  } else {
+    gs.N = LEVEL_CONFIGS[gs.level - 1].N;
+    document.querySelectorAll('.level-btn').forEach((b, i) => {
+      b.classList.toggle('active', i + 1 === gs.level);
+    });
+  }
+  resetRace();
+}
+
+function goBackToLab() {
+  window.history.back();
+}
+
+// ============================================================
+// LEVEL DOTS
+// ============================================================
+function updateLevelDots() {
+  const container = document.getElementById('levelDots');
+  container.innerHTML = '';
+  LEVEL_CONFIGS.forEach(cfg => {
+    const dot = document.createElement('div');
+    dot.className = 'l-dot' +
+      (gs.completedLevels.has(cfg.level) ? ' done' : '') +
+      (gs.level === cfg.level && !gs.challengeMode ? ' active' : '');
+    dot.title = `Level ${cfg.level}: N=${cfg.N}`;
+    dot.onclick = () => setLevel(cfg.level);
+    container.appendChild(dot);
+  });
+
+  const cdot = document.createElement('div');
+  cdot.className = 'l-dot' + (gs.challengeMode ? ' active' : '');
+  cdot.style.border = '1px dashed var(--dim)';
+  cdot.title = 'Challenge Mode: N=64, hidden bars';
+  cdot.onclick = () => toggleChallenge();
+  container.appendChild(cdot);
+}
+
+// ============================================================
+// LEVEL SELECTOR BUTTONS
+// ============================================================
+function buildLevelSelector() {
+  const container = document.getElementById('levelSelector');
+  LEVEL_CONFIGS.forEach(cfg => {
+    const btn = document.createElement('button');
+    btn.className = 'level-btn' + (cfg.level === 1 ? ' active' : '');
+    btn.textContent = `N=${cfg.N}`;
+    btn.onclick = () => setLevel(cfg.level);
+    container.appendChild(btn);
+  });
+}
+
+// ============================================================
+// INIT
+// ============================================================
+buildLevelSelector();
+updateLevelDots();
+gs.amplitudes = initAmplitudes(gs.N);
+buildGrids();
+renderAmplitudes();
+renderProbGraph();
+
+document.getElementById('statN').textContent = gs.N;
+document.getElementById('statOptimal').textContent = LEVEL_CONFIGS[0].showOptimal ? getOptimalIter(gs.N) : '???';
+
+window.addEventListener('resize', () => {
+  if (gs.raceStarted) renderProbGraph();
+});
+</script>
+</body>
+</html>

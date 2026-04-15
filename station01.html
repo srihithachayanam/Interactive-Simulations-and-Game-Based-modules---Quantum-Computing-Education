@@ -1,0 +1,1552 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>YDSE — Young's Double Slit Experiment</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet">
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+
+:root {
+  --bg:       #04060d;
+  --bg2:      #080c18;
+  --bg3:      #0c1220;
+  --panel:    #0f1628;
+  --panel2:   #141d35;
+  --border:   #1a2540;
+  --border2:  #243355;
+  --text:     #dce8f5;
+  --text2:    #7a99c0;
+  --text3:    #334466;
+  --cyan:     #00e5ff;
+  --teal:     #00ffcc;
+  --gold:     #ffc940;
+  --red:      #ff4d6d;
+  --green:    #39ff8f;
+  --dim:      rgba(0,229,255,0.06);
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Space Mono', monospace;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* scanline overlay */
+body::after {
+  content:'';
+  position:fixed;
+  inset:0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0,0,0,0.08) 2px,
+    rgba(0,0,0,0.08) 4px
+  );
+  pointer-events:none;
+  z-index:9999;
+}
+
+/* grid bg */
+body::before {
+  content:'';
+  position:fixed;
+  inset:0;
+  background-image:
+    linear-gradient(rgba(0,229,255,0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,229,255,0.025) 1px, transparent 1px);
+  background-size: 48px 48px;
+  pointer-events:none;
+  z-index:0;
+}
+
+/* ===== HEADER ===== */
+header {
+  position: sticky; top:0; z-index:100;
+  background: rgba(4,6,13,0.92);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+  padding: 0 28px;
+  height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.logo {
+  display: flex; align-items: center; gap: 12px;
+}
+
+.logo-atom {
+  width: 28px; height: 28px;
+  position: relative;
+  display: flex; align-items:center; justify-content:center;
+}
+
+.logo-atom::before, .logo-atom::after {
+  content:'';
+  position:absolute;
+  border: 1.5px solid var(--cyan);
+  border-radius: 50%;
+  opacity: 0.7;
+}
+.logo-atom::before { width:100%; height:40%; animation: orbit1 4s linear infinite; }
+.logo-atom::after  { width:40%; height:100%; animation: orbit2 3s linear infinite; }
+
+@keyframes orbit1 { from{transform:rotate(0)} to{transform:rotate(360deg)} }
+@keyframes orbit2 { from{transform:rotate(0)} to{transform:rotate(-360deg)} }
+
+.logo-dot {
+  width:6px;height:6px;
+  border-radius:50%;
+  background:var(--cyan);
+  box-shadow:0 0 8px var(--cyan);
+  z-index:1;
+}
+
+.logo-text {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--text);
+}
+.logo-text span { color: var(--cyan); }
+
+.header-right {
+  display: flex; align-items:center; gap: 16px;
+}
+
+.mode-toggle {
+  display:flex;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow:hidden;
+}
+
+.mode-btn {
+  padding: 5px 12px;
+  font-family: 'Space Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  color: var(--text3);
+  transition: all 0.2s;
+}
+.mode-btn.active { background: rgba(0,229,255,0.12); color: var(--cyan); }
+
+.detector-master {
+  display:flex; align-items:center; gap:8px;
+  font-size:10px;
+  color:var(--text2);
+  text-transform:uppercase;
+  letter-spacing:0.08em;
+  cursor:pointer;
+}
+
+.eye-toggle {
+  width:36px;height:18px;
+  background:var(--border);
+  border-radius:9px;
+  position:relative;
+  transition: background 0.3s;
+  cursor:pointer;
+}
+.eye-toggle.on { background: rgba(255,77,109,0.4); border: 1px solid var(--red); }
+.eye-toggle::after {
+  content:'';
+  position:absolute;
+  top:2px; left:2px;
+  width:14px;height:14px;
+  border-radius:50%;
+  background:var(--text3);
+  transition: transform 0.3s, background 0.3s;
+}
+.eye-toggle.on::after { transform:translateX(18px); background:var(--red); }
+
+/* ===== MAIN LAYOUT ===== */
+.main {
+  position: relative;
+  z-index:1;
+  display: grid;
+  grid-template-columns: 300px 1fr 280px;
+  grid-template-rows: 1fr;
+  height: calc(100vh - 52px);
+  overflow: hidden;
+}
+
+/* ===== LEFT PANEL — SLIDERS ===== */
+.left-panel {
+  background: var(--panel);
+  border-right: 1px solid var(--border);
+  overflow-y: auto;
+  padding: 20px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.left-panel::-webkit-scrollbar { width: 3px; }
+.left-panel::-webkit-scrollbar-thumb { background: var(--border2); }
+
+.panel-section-title {
+  font-size: 9px;
+  color: var(--text3);
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  padding: 8px 4px 6px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 8px;
+  margin-top: 8px;
+}
+
+.slider-row {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 14px;
+  margin-bottom: 6px;
+  position: relative;
+  transition: border-color 0.2s;
+}
+
+.slider-row:hover { border-color: var(--border2); }
+.slider-row.active-edit { border-color: rgba(0,229,255,0.4); box-shadow: 0 0 12px rgba(0,229,255,0.08); }
+
+.slider-top {
+  display:flex; align-items:flex-start; justify-content:space-between;
+  margin-bottom: 10px;
+}
+
+.slider-name {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  line-height: 1.2;
+}
+
+.slider-symbol {
+  font-size: 9px;
+  color: var(--cyan);
+  opacity: 0.7;
+  margin-top: 2px;
+  font-style: italic;
+}
+
+.slider-val-box {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  background: var(--panel2);
+  border: 1px solid var(--border2);
+  border-radius: 5px;
+  overflow: hidden;
+}
+
+.slider-val-input {
+  width: 62px;
+  padding: 4px 6px;
+  background: transparent;
+  border: none;
+  font-family: 'Space Mono', monospace;
+  font-size: 11px;
+  color: var(--cyan);
+  text-align: right;
+  outline: none;
+}
+
+.slider-val-input::-webkit-inner-spin-button { -webkit-appearance: none; }
+
+.slider-unit {
+  font-size: 9px;
+  color: var(--text3);
+  padding: 0 6px 0 2px;
+  white-space: nowrap;
+}
+
+.range-wrap {
+  position: relative;
+}
+
+input[type=range] {
+  -webkit-appearance: none;
+  width: 100%;
+  height: 3px;
+  background: var(--border2);
+  border-radius: 2px;
+  outline: none;
+  cursor: pointer;
+}
+
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px; height: 14px;
+  border-radius: 50%;
+  background: var(--bg);
+  border: 2px solid var(--cyan);
+  box-shadow: 0 0 8px rgba(0,229,255,0.5);
+  cursor: pointer;
+  transition: box-shadow 0.15s;
+}
+
+input[type=range]:hover::-webkit-slider-thumb {
+  box-shadow: 0 0 14px rgba(0,229,255,0.8);
+}
+
+input[type=range].gold::-webkit-slider-thumb { border-color: var(--gold); box-shadow:0 0 8px rgba(255,201,64,0.5); }
+input[type=range].gold { background: linear-gradient(90deg, rgba(255,201,64,0.3) var(--pct,50%), var(--border2) var(--pct,50%)); }
+input[type=range].green::-webkit-slider-thumb { border-color: var(--green); box-shadow:0 0 8px rgba(57,255,143,0.5); }
+input[type=range].green { background: linear-gradient(90deg, rgba(57,255,143,0.3) var(--pct,50%), var(--border2) var(--pct,50%)); }
+input[type=range].teal::-webkit-slider-thumb { border-color: var(--teal); box-shadow:0 0 8px rgba(0,255,204,0.5); }
+input[type=range].teal { background: linear-gradient(90deg, rgba(0,255,204,0.3) var(--pct,50%), var(--border2) var(--pct,50%)); }
+input[type=range].red::-webkit-slider-thumb { border-color: var(--red); box-shadow:0 0 8px rgba(255,77,109,0.5); }
+input[type=range].red { background: linear-gradient(90deg, rgba(255,77,109,0.3) var(--pct,50%), var(--border2) var(--pct,50%)); }
+input[type=range]:not(.gold):not(.green):not(.teal):not(.red) {
+  background: linear-gradient(90deg, rgba(0,229,255,0.35) var(--pct,50%), var(--border2) var(--pct,50%));
+}
+
+.slider-extremes {
+  display:flex; justify-content:space-between;
+  font-size: 8px; color: var(--text3);
+  margin-top: 4px;
+}
+
+.coupled-tag {
+  position: absolute;
+  top: 8px; right: 8px;
+  font-size: 8px;
+  color: var(--gold);
+  padding: 1px 5px;
+  background: rgba(255,201,64,0.08);
+  border: 1px solid rgba(255,201,64,0.2);
+  border-radius: 3px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+/* fringe width coupling mode */
+.fw-mode-row {
+  display: flex;
+  gap: 4px;
+  margin-top: 8px;
+}
+.fw-mode-btn {
+  flex:1;
+  padding: 4px 0;
+  font-family: 'Space Mono', monospace;
+  font-size: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  background: var(--panel2);
+  border: 1px solid var(--border);
+  color: var(--text3);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s;
+  text-align: center;
+}
+.fw-mode-btn.active { background: rgba(255,201,64,0.12); border-color: rgba(255,201,64,0.4); color: var(--gold); }
+
+/* ===== CENTER — SIMULATION ===== */
+.sim-wrap {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
+}
+
+canvas#simCanvas {
+  flex:1;
+  display:block;
+  width:100%;
+}
+
+.sim-bottom-bar {
+  height: 38px;
+  background: var(--panel);
+  border-top: 1px solid var(--border);
+  display:flex; align-items:center;
+  padding: 0 20px;
+  gap: 24px;
+}
+
+.quick-stat {
+  display:flex; align-items:center; gap:6px;
+  font-size: 10px;
+}
+.qs-label { color:var(--text3); }
+.qs-val { color:var(--cyan); font-weight:700; min-width:60px; }
+
+.fire-btn {
+  margin-left: auto;
+  display:flex; align-items:center; gap:8px;
+  padding: 7px 16px;
+  background: rgba(0,229,255,0.1);
+  border: 1px solid rgba(0,229,255,0.35);
+  border-radius: 6px;
+  font-family: 'Space Mono', monospace;
+  font-size: 10px;
+  color: var(--cyan);
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  transition: all 0.2s;
+}
+.fire-btn:hover { background:rgba(0,229,255,0.18); box-shadow:0 0 16px rgba(0,229,255,0.2); }
+.fire-btn.firing { background:rgba(255,77,109,0.12); border-color:rgba(255,77,109,0.4); color:var(--red); }
+
+.reset-btn {
+  padding: 7px 12px;
+  background: var(--panel2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-family: 'Space Mono', monospace;
+  font-size: 10px;
+  color: var(--text2);
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  transition: all 0.2s;
+}
+.reset-btn:hover { border-color:var(--border2); color:var(--text); }
+
+/* ===== RIGHT PANEL — FORMULAS & INFO ===== */
+.right-panel {
+  background: var(--panel);
+  border-left: 1px solid var(--border);
+  overflow-y: auto;
+  padding: 20px 16px;
+  display:flex;
+  flex-direction:column;
+  gap:12px;
+}
+
+.right-panel::-webkit-scrollbar { width:3px; }
+.right-panel::-webkit-scrollbar-thumb { background:var(--border2); }
+
+.info-card {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px;
+}
+
+.info-card-title {
+  font-size: 9px;
+  color: var(--text3);
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.formula-display {
+  font-family: 'DM Serif Display', serif;
+  font-size: 15px;
+  color: var(--gold);
+  text-align: center;
+  padding: 10px 0;
+  letter-spacing: 0.04em;
+}
+
+.formula-sub {
+  font-size: 8px;
+  color: var(--text3);
+  text-align: center;
+  margin-top: 4px;
+  line-height: 1.5;
+}
+
+.var-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.var-chip {
+  background: var(--panel2);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 6px 8px;
+}
+
+.var-chip-sym {
+  font-size: 10px;
+  color: var(--cyan);
+  margin-bottom: 2px;
+  font-style: italic;
+}
+
+.var-chip-val {
+  font-size: 11px;
+  color: var(--text);
+  font-weight: 700;
+}
+
+.var-chip-unit {
+  font-size: 8px;
+  color: var(--text3);
+  margin-top: 1px;
+}
+
+.derived-list {
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+  margin-top:8px;
+}
+
+.derived-row {
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  padding:6px 8px;
+  background: var(--panel2);
+  border-radius:5px;
+  border-left: 2px solid var(--cyan);
+}
+.derived-row.gold-accent { border-left-color: var(--gold); }
+.derived-row.teal-accent { border-left-color: var(--teal); }
+.derived-row.red-accent { border-left-color: var(--red); }
+
+.dr-name { font-size:9px; color:var(--text2); }
+.dr-val  { font-size:11px; color:var(--text); font-weight:700; }
+.dr-unit { font-size:8px; color:var(--text3); margin-top:1px; }
+
+.insight-box {
+  background: rgba(0,229,255,0.04);
+  border: 1px solid rgba(0,229,255,0.12);
+  border-radius:8px;
+  padding:12px;
+  font-size:10px;
+  color:var(--text2);
+  line-height:1.7;
+}
+
+.insight-box.warn {
+  background: rgba(255,77,109,0.04);
+  border-color: rgba(255,77,109,0.15);
+  color: var(--red);
+}
+
+.insight-box b { color: var(--cyan); }
+
+.wavelength-bar {
+  height: 12px;
+  border-radius: 4px;
+  margin: 8px 0 4px;
+  transition: background 0.3s;
+}
+
+.obs-status {
+  display:flex;
+  align-items:center;
+  gap:8px;
+  padding:8px 10px;
+  border-radius:6px;
+  font-size:10px;
+  font-weight:700;
+  text-transform:uppercase;
+  letter-spacing:0.08em;
+  transition:all 0.3s;
+}
+.obs-status.quantum { background:rgba(0,229,255,0.08); border:1px solid rgba(0,229,255,0.2); color:var(--cyan); }
+.obs-status.classical { background:rgba(255,77,109,0.08); border:1px solid rgba(255,77,109,0.2); color:var(--red); }
+
+.obs-dot {
+  width:8px;height:8px;
+  border-radius:50%;
+  animation: blink 1.5s ease-in-out infinite;
+}
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+.obs-status.quantum .obs-dot { background:var(--cyan); box-shadow:0 0 6px var(--cyan); }
+.obs-status.classical .obs-dot { background:var(--red); box-shadow:0 0 6px var(--red); }
+
+/* particle counter */
+.pcount {
+  display:flex; align-items:center; justify-content:space-between;
+  padding: 8px 10px;
+  background:var(--panel2);
+  border-radius:6px;
+  border:1px solid var(--border);
+}
+.pcount-num {
+  font-size:20px;
+  font-weight:700;
+  color:var(--cyan);
+  font-variant-numeric: tabular-nums;
+}
+.pcount-label { font-size:8px; color:var(--text3); text-transform:uppercase; letter-spacing:0.1em; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-atom"><div class="logo-dot"></div></div>
+    <span class="logo-text">Young's <span>Double Slit</span> Experiment</span>
+  </div>
+  <div class="header-right">
+    <div class="mode-toggle">
+      <button class="mode-btn active" id="btn-single" onclick="setMode('single')">Single</button>
+      <button class="mode-btn" id="btn-stream" onclick="setMode('stream')">Stream</button>
+      <button class="mode-btn" id="btn-wave" onclick="setMode('wave')">Wave</button>
+    </div>
+    <div class="detector-master" onclick="toggleDetector()">
+      <span id="det-label">Detector OFF</span>
+      <div class="eye-toggle" id="eye-toggle"></div>
+    </div>
+  </div>
+</header>
+
+<div class="main">
+
+  <!-- ===== LEFT PANEL ===== -->
+  <div class="left-panel">
+    <div class="panel-section-title">— Light Source</div>
+
+    <!-- WAVELENGTH -->
+    <div class="slider-row" id="row-lambda">
+      <div class="slider-top">
+        <div><div class="slider-name">Wavelength</div><div class="slider-symbol">λ (lambda)</div></div>
+        <div class="slider-val-box">
+          <input class="slider-val-input" id="val-lambda" type="number" value="550" min="380" max="750" step="1" oninput="onValInput('lambda',this.value)">
+          <span class="slider-unit">nm</span>
+        </div>
+      </div>
+      <div class="range-wrap">
+        <input type="range" id="sl-lambda" class="green" min="380" max="750" value="550" step="1" oninput="onSlider('lambda',this.value)">
+        <div class="slider-extremes"><span>380 nm</span><span>750 nm</span></div>
+      </div>
+      <div class="wavelength-bar" id="wl-bar"></div>
+    </div>
+
+    <div class="panel-section-title">— Slit Geometry</div>
+
+    <!-- SLIT WIDTH -->
+    <div class="slider-row" id="row-a">
+      <div class="slider-top">
+        <div><div class="slider-name">Slit Width</div><div class="slider-symbol">a</div></div>
+        <div class="slider-val-box">
+          <input class="slider-val-input" id="val-a" type="number" value="0.04" min="0.01" max="0.3" step="0.01" oninput="onValInput('a',this.value)">
+          <span class="slider-unit">mm</span>
+        </div>
+      </div>
+      <div class="range-wrap">
+        <input type="range" id="sl-a" min="1" max="30" value="4" oninput="onSlider('a',this.value/100)">
+        <div class="slider-extremes"><span>0.01 mm</span><span>0.30 mm</span></div>
+      </div>
+    </div>
+
+    <!-- SLIT HEIGHT -->
+    <div class="slider-row" id="row-h">
+      <div class="slider-top">
+        <div><div class="slider-name">Slit Height</div><div class="slider-symbol">h</div></div>
+        <div class="slider-val-box">
+          <input class="slider-val-input" id="val-h" type="number" value="2.0" min="0.5" max="10" step="0.1" oninput="onValInput('h',this.value)">
+          <span class="slider-unit">mm</span>
+        </div>
+      </div>
+      <div class="range-wrap">
+        <input type="range" id="sl-h" min="5" max="100" value="20" oninput="onSlider('h',this.value/10)">
+        <div class="slider-extremes"><span>0.5 mm</span><span>10 mm</span></div>
+      </div>
+    </div>
+
+    <!-- SLIT SEPARATION (d) -->
+    <div class="slider-row" id="row-d">
+      <div class="coupled-tag">Coupled</div>
+      <div class="slider-top">
+        <div><div class="slider-name">Slit Separation</div><div class="slider-symbol">d</div></div>
+        <div class="slider-val-box">
+          <input class="slider-val-input" id="val-d" type="number" value="0.25" min="0.05" max="2.0" step="0.01" oninput="onValInput('d',this.value)">
+          <span class="slider-unit">mm</span>
+        </div>
+      </div>
+      <div class="range-wrap">
+        <input type="range" id="sl-d" class="teal" min="5" max="200" value="25" oninput="onSlider('d',this.value/100)">
+        <div class="slider-extremes"><span>0.05 mm</span><span>2.0 mm</span></div>
+      </div>
+    </div>
+
+    <!-- SLIT GAP (distance between slits, = d - a)-->
+    <div class="slider-row" id="row-gap">
+      <div class="coupled-tag">Coupled</div>
+      <div class="slider-top">
+        <div><div class="slider-name">Slit Gap</div><div class="slider-symbol">g = d − a</div></div>
+        <div class="slider-val-box">
+          <input class="slider-val-input" id="val-gap" type="number" value="0.21" min="0.01" max="1.9" step="0.01" oninput="onValInput('gap',this.value)">
+          <span class="slider-unit">mm</span>
+        </div>
+      </div>
+      <div class="range-wrap">
+        <input type="range" id="sl-gap" class="teal" min="1" max="190" value="21" oninput="onSlider('gap',this.value/100)">
+        <div class="slider-extremes"><span>0.01 mm</span><span>1.9 mm</span></div>
+      </div>
+    </div>
+
+    <div class="panel-section-title">— Screen & Setup</div>
+
+    <!-- SCREEN DISTANCE D -->
+    <div class="slider-row" id="row-D">
+      <div class="coupled-tag">Coupled</div>
+      <div class="slider-top">
+        <div><div class="slider-name">Screen Distance</div><div class="slider-symbol">D</div></div>
+        <div class="slider-val-box">
+          <input class="slider-val-input" id="val-D" type="number" value="1.0" min="0.3" max="3.0" step="0.1" oninput="onValInput('D',this.value)">
+          <span class="slider-unit">m</span>
+        </div>
+      </div>
+      <div class="range-wrap">
+        <input type="range" id="sl-D" min="3" max="30" value="10" oninput="onSlider('D',this.value/10)">
+        <div class="slider-extremes"><span>0.3 m</span><span>3.0 m</span></div>
+      </div>
+    </div>
+
+    <!-- PATH DIFFERENCE -->
+    <div class="slider-row" id="row-pd">
+      <div class="slider-top">
+        <div><div class="slider-name">Path Diff. (probe y)</div><div class="slider-symbol">Δ = d·y/D</div></div>
+        <div class="slider-val-box">
+          <input class="slider-val-input" id="val-pd" type="number" value="0" min="-5" max="5" step="0.1" oninput="onValInput('pd',this.value)">
+          <span class="slider-unit">mm</span>
+        </div>
+      </div>
+      <div class="range-wrap">
+        <input type="range" id="sl-pd" class="gold" min="-50" max="50" value="0" oninput="onSlider('pd',this.value/10)">
+        <div class="slider-extremes"><span>−5 mm</span><span>+5 mm</span></div>
+      </div>
+    </div>
+
+    <div class="panel-section-title">— Fringe Width (Reverse Coupling)</div>
+
+    <!-- FRINGE WIDTH -->
+    <div class="slider-row" id="row-beta">
+      <div class="coupled-tag" style="color:var(--gold);border-color:rgba(255,201,64,0.3);">↔ REVERSE</div>
+      <div class="slider-top">
+        <div><div class="slider-name">Fringe Width</div><div class="slider-symbol">β = λD/d</div></div>
+        <div class="slider-val-box">
+          <input class="slider-val-input" id="val-beta" type="number" value="2.2" min="0.1" max="20" step="0.1" oninput="onValInput('beta',this.value)">
+          <span class="slider-unit">mm</span>
+        </div>
+      </div>
+      <div class="range-wrap">
+        <input type="range" id="sl-beta" class="gold" min="1" max="200" value="22" oninput="onSlider('beta',this.value/10)">
+        <div class="slider-extremes"><span>0.1 mm</span><span>20 mm</span></div>
+      </div>
+      <div class="fw-mode-row">
+        <button class="fw-mode-btn active" id="fw-btn-d" onclick="setFWMode('d')">Adjust d</button>
+        <button class="fw-mode-btn" id="fw-btn-D" onclick="setFWMode('D')">Adjust D</button>
+        <button class="fw-mode-btn" id="fw-btn-lambda" onclick="setFWMode('lambda')">Adjust λ</button>
+      </div>
+      <div style="font-size:8px;color:var(--text3);margin-top:6px;line-height:1.5;">
+        Changing β will back-calculate and update the selected variable above.
+      </div>
+    </div>
+
+    <div class="panel-section-title">— Medium</div>
+
+    <!-- REFRACTIVE INDEX -->
+    <div class="slider-row" id="row-mu">
+      <div class="slider-top">
+        <div><div class="slider-name">Refractive Index</div><div class="slider-symbol">μ (slab)</div></div>
+        <div class="slider-val-box">
+          <input class="slider-val-input" id="val-mu" type="number" value="1.0" min="1.0" max="2.5" step="0.05" oninput="onValInput('mu',this.value)">
+          <span class="slider-unit">—</span>
+        </div>
+      </div>
+      <div class="range-wrap">
+        <input type="range" id="sl-mu" class="red" min="100" max="250" value="100" oninput="onSlider('mu',this.value/100)">
+        <div class="slider-extremes"><span>1.0 (air)</span><span>2.5 (dense)</span></div>
+      </div>
+    </div>
+
+    <!-- SLAB THICKNESS -->
+    <div class="slider-row" id="row-t">
+      <div class="slider-top">
+        <div><div class="slider-name">Slab Thickness</div><div class="slider-symbol">t</div></div>
+        <div class="slider-val-box">
+          <input class="slider-val-input" id="val-t" type="number" value="0" min="0" max="0.1" step="0.001" oninput="onValInput('t',this.value)">
+          <span class="slider-unit">mm</span>
+        </div>
+      </div>
+      <div class="range-wrap">
+        <input type="range" id="sl-t" class="red" min="0" max="100" value="0" oninput="onSlider('t',this.value/1000)">
+        <div class="slider-extremes"><span>0 mm</span><span>0.1 mm</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== SIMULATION CANVAS ===== -->
+  <div class="sim-wrap">
+    <canvas id="simCanvas"></canvas>
+    <div class="sim-bottom-bar">
+      <div class="quick-stat"><span class="qs-label">β =</span><span class="qs-val" id="qs-beta">—</span></div>
+      <div class="quick-stat"><span class="qs-label">Δ =</span><span class="qs-val" id="qs-delta">—</span></div>
+      <div class="quick-stat"><span class="qs-label">Shift =</span><span class="qs-val" id="qs-shift">—</span></div>
+      <button class="reset-btn" onclick="resetParticles()">Clear Screen</button>
+      <button class="fire-btn" id="fire-btn" onclick="toggleFire()">▶ Fire Particles</button>
+    </div>
+  </div>
+
+  <!-- ===== RIGHT PANEL ===== -->
+  <div class="right-panel">
+
+    <div class="obs-status quantum" id="obs-status">
+      <div class="obs-dot"></div>
+      <span id="obs-text">Quantum — Wave Interference</span>
+    </div>
+
+    <div class="pcount">
+      <div><div class="pcount-num" id="pcount-num">0</div><div class="pcount-label">Particles Fired</div></div>
+      <div style="text-align:right"><div class="pcount-num" id="pcount-hits" style="color:var(--teal);">0</div><div class="pcount-label">Screen Hits</div></div>
+    </div>
+
+    <div class="info-card">
+      <div class="info-card-title">Core Formula</div>
+      <div class="formula-display">β = λD / d</div>
+      <div class="formula-sub">Fringe width · wavelength · screen dist / slit sep</div>
+      <div class="formula-display" style="font-size:12px;margin-top:6px;">Δ = d · y / D</div>
+      <div class="formula-sub">Path difference at position y from centre</div>
+      <div class="formula-display" style="font-size:12px;margin-top:6px;">Shift = (μ−1)·t·D / d</div>
+      <div class="formula-sub">Fringe shift due to slab (refractive index μ, thickness t)</div>
+    </div>
+
+    <div class="info-card">
+      <div class="info-card-title">Live Derived Values</div>
+      <div class="derived-list">
+        <div class="derived-row">
+          <div><div class="dr-name">Fringe Width β</div><div class="dr-val" id="dr-beta">—</div></div>
+          <div class="dr-unit">mm</div>
+        </div>
+        <div class="derived-row gold-accent">
+          <div><div class="dr-name">Path Diff at probe Δ</div><div class="dr-val" id="dr-delta">—</div></div>
+          <div class="dr-unit">nm</div>
+        </div>
+        <div class="derived-row teal-accent">
+          <div><div class="dr-name">Order at probe (Δ/λ)</div><div class="dr-val" id="dr-order">—</div></div>
+          <div class="dr-unit">—</div>
+        </div>
+        <div class="derived-row red-accent">
+          <div><div class="dr-name">Fringe Shift (slab)</div><div class="dr-val" id="dr-shift">—</div></div>
+          <div class="dr-unit">mm</div>
+        </div>
+        <div class="derived-row">
+          <div><div class="dr-name">No. of shifted fringes</div><div class="dr-val" id="dr-nshift">—</div></div>
+          <div class="dr-unit">fringes</div>
+        </div>
+        <div class="derived-row gold-accent">
+          <div><div class="dr-name">Angular fringe width</div><div class="dr-val" id="dr-ang">—</div></div>
+          <div class="dr-unit">mrad</div>
+        </div>
+        <div class="derived-row teal-accent">
+          <div><div class="dr-name">Diffraction envelope min</div><div class="dr-val" id="dr-diffmin">—</div></div>
+          <div class="dr-unit">mm from centre</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="info-card">
+      <div class="info-card-title">Wavelength → Color</div>
+      <div class="wavelength-bar" id="wl-bar2"></div>
+      <div style="display:flex;justify-content:space-between;font-size:8px;color:var(--text3);margin-top:2px;">
+        <span>380nm UV</span><span id="wl-color-name" style="color:var(--text2);">—</span><span>750nm IR</span>
+      </div>
+    </div>
+
+    <div class="insight-box" id="insight-box">
+      <b>Start firing particles</b> to build the interference pattern on the screen. Try toggling the which-path detector to watch the pattern collapse in real time.
+    </div>
+
+  </div>
+</div>
+
+<script>
+// ===================================================================
+//  PHYSICS STATE
+// ===================================================================
+const P = {
+  lambda: 550,    // nm
+  a:      0.04,   // mm slit width
+  h:      2.0,    // mm slit height
+  d:      0.25,   // mm slit separation
+  D:      1000,   // mm screen distance (stored in mm)
+  mu:     1.0,    // refractive index
+  t:      0,      // mm slab thickness
+  pd:     0,      // mm probe y-position
+  detectorOn: false,
+};
+
+let fwMode = 'd'; // which variable fringe-width slider back-calculates
+let fireMode = 'single';
+let firing = false;
+let particleCount = 0, hitCount = 0;
+let particles = [];
+let streamInterval = null;
+
+// ===================================================================
+//  DERIVED CALCULATIONS
+// ===================================================================
+function beta()    { return P.lambda * 1e-6 * P.D / P.d; }          // mm
+function delta()   { return P.d * P.pd / P.D; }                      // mm = P.d*P.pd/P.D
+function deltaNm() { return delta() * 1e6; }                         // nm
+function order()   { return deltaNm() / P.lambda; }
+function shift()   { return (P.mu - 1) * P.t * P.D / P.d; }         // mm
+function nshift()  { return shift() / beta(); }
+function angFW()   { return (P.lambda * 1e-6 / P.d) * 1000; }       // mrad  = lambda/d * 1000
+function diffMin() { return P.lambda * 1e-6 * P.D / P.a; }          // mm  first diff minimum
+
+// ===================================================================
+//  INTENSITY AT SCREEN POSITION y (mm from centre), includes:
+//   - double slit interference
+//   - single slit diffraction envelope
+//   - slab shift
+//   - wavelength (color)
+// ===================================================================
+function intensity(y) {
+  const yShifted = y - shift();
+  // phase difference
+  const phi = Math.PI * P.d * yShifted / (P.lambda * 1e-6 * P.D); // radians
+  // double slit interference
+  const I_ds = Math.cos(phi) ** 2;
+  // single slit diffraction envelope
+  const alpha = Math.PI * P.a * yShifted / (P.lambda * 1e-6 * P.D);
+  const I_ss = alpha === 0 ? 1 : (Math.sin(alpha) / alpha) ** 2;
+  return I_ds * I_ss;
+}
+
+function wavelengthToRGB(nm) {
+  let r=0,g=0,b=0;
+  if      (nm>=380&&nm<440){r=(440-nm)/60;b=1;}
+  else if (nm>=440&&nm<490){g=(nm-440)/50;b=1;}
+  else if (nm>=490&&nm<510){g=1;b=(510-nm)/20;}
+  else if (nm>=510&&nm<580){r=(nm-510)/70;g=1;}
+  else if (nm>=580&&nm<645){r=1;g=(645-nm)/65;}
+  else if (nm>=645&&nm<=750){r=1;}
+  const att = nm<420?0.3+(nm-380)/40*0.7:nm>700?0.3+(750-nm)/50*0.7:1;
+  return [Math.round(r*att*255), Math.round(g*att*255), Math.round(b*att*255)];
+}
+
+function wlColorName(nm) {
+  if(nm<380) return 'UV';
+  if(nm<450) return 'Violet';
+  if(nm<495) return 'Blue';
+  if(nm<570) return 'Green';
+  if(nm<590) return 'Yellow';
+  if(nm<620) return 'Orange';
+  if(nm<=750) return 'Red';
+  return 'IR';
+}
+
+// ===================================================================
+//  CANVAS & RENDER
+// ===================================================================
+const canvas = document.getElementById('simCanvas');
+const ctx = canvas.getContext('2d');
+let W, H;
+
+function resize() {
+  const wrap = canvas.parentElement;
+  W = wrap.clientWidth;
+  H = wrap.clientHeight - 38;
+  canvas.width  = W;
+  canvas.height = H;
+  drawAll();
+}
+
+window.addEventListener('resize', resize);
+
+// Layout constants (fractions of W/H)
+function layout() {
+  const emitterX = W * 0.06;
+  const barrierX = W * 0.30;
+  const screenX  = W * 0.85;
+  const cy       = H / 2;
+  return {emitterX, barrierX, screenX, cy};
+}
+
+function drawAll() {
+  ctx.clearRect(0,0,W,H);
+  drawBackground();
+  drawBeamPath();
+  drawInterferencePattern();
+  drawBarrier();
+  drawEmitter();
+  drawProbe();
+  drawParticles();
+}
+
+function drawBackground() {
+  ctx.fillStyle = '#04060d';
+  ctx.fillRect(0,0,W,H);
+}
+
+function drawBeamPath() {
+  const {emitterX, barrierX, screenX, cy} = layout();
+  const slitY1 = cy - slitCenterOffset();
+  const slitY2 = cy + slitCenterOffset();
+
+  ctx.save();
+  ctx.globalAlpha = P.detectorOn ? 0.1 : 0.15;
+  // two beams from emitter to slits
+  [[emitterX, cy, barrierX, slitY1],[emitterX, cy, barrierX, slitY2]].forEach(([x1,y1,x2,y2]) => {
+    const grad = ctx.createLinearGradient(x1,y1,x2,y2);
+    const [r,g,b] = wavelengthToRGB(P.lambda);
+    grad.addColorStop(0, `rgba(${r},${g},${b},0)`);
+    grad.addColorStop(1, `rgba(${r},${g},${b},0.6)`);
+    ctx.strokeStyle = grad;
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([4,4]);
+    ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
+  });
+  ctx.setLineDash([]);
+  ctx.restore();
+}
+
+function slitCenterOffset() {
+  return pixPerMM() * (P.d / 2);
+}
+
+function pixPerMM() {
+  const {screenX, barrierX} = layout();
+  return (screenX - barrierX) * 0.004;  // scale factor
+}
+
+function drawInterferencePattern() {
+  const {barrierX, screenX, cy} = layout();
+  if (P.detectorOn) {
+    // Classical: two gaussian blobs
+    [-1,1].forEach(sign => {
+      const blobY = cy + sign * slitCenterOffset();
+      const gradient = ctx.createRadialGradient(screenX, blobY, 0, screenX, blobY, H*0.18);
+      const [r,g,b] = wavelengthToRGB(P.lambda);
+      gradient.addColorStop(0, `rgba(${r},${g},${b},0.55)`);
+      gradient.addColorStop(1, `rgba(${r},${g},${b},0)`);
+      ctx.fillStyle = gradient;
+      ctx.fillRect(screenX - 12, cy - H*0.45, 24, H*0.9);
+    });
+    return;
+  }
+
+  // Quantum: full interference + diffraction pattern
+  const screenW = 18;
+  const [r,g,b] = wavelengthToRGB(P.lambda);
+  const numBands = 800;
+  const halfH = H * 0.48;
+
+  const imgData = ctx.createImageData(screenW, numBands);
+  for (let i = 0; i < numBands; i++) {
+    const y_mm = ((i / numBands) - 0.5) * (halfH * 2 / pixMmFactor());
+    const I = intensity(y_mm - shift());
+    const alpha = Math.min(255, Math.floor(I * 230));
+    for (let x = 0; x < screenW; x++) {
+      const idx = (i * screenW + x) * 4;
+      imgData.data[idx]   = r;
+      imgData.data[idx+1] = g;
+      imgData.data[idx+2] = b;
+      imgData.data[idx+3] = alpha;
+    }
+  }
+  ctx.putImageData(imgData, screenX - screenW/2, cy - halfH);
+}
+
+function pixMmFactor() {
+  return H * 0.48 / 15; // px per mm
+}
+
+function drawBarrier() {
+  const {barrierX, cy} = layout();
+  const slitOff = slitCenterOffset();
+  const halfSlitH = pixPerMM() * (P.h / 2) * 8;
+  const barrierW = 10;
+
+  ctx.fillStyle = '#1a2540';
+  ctx.strokeStyle = '#243355';
+  ctx.lineWidth = 1;
+
+  const regions = [
+    [0, cy - slitOff - halfSlitH],
+    [cy - slitOff + halfSlitH, cy + slitOff - halfSlitH],
+    [cy + slitOff + halfSlitH, H],
+  ];
+
+  regions.forEach(([y1, y2]) => {
+    if (y2 > y1) {
+      ctx.fillRect(barrierX - barrierW/2, y1, barrierW, y2-y1);
+      ctx.strokeRect(barrierX - barrierW/2, y1, barrierW, y2-y1);
+    }
+  });
+
+  // slit highlight
+  if (!P.detectorOn) {
+    const [r,g,b] = wavelengthToRGB(P.lambda);
+    [-1,1].forEach(sign => {
+      const sy = cy + sign * slitOff - halfSlitH;
+      ctx.fillStyle = `rgba(${r},${g},${b},0.12)`;
+      ctx.fillRect(barrierX - barrierW/2 - 2, sy, barrierW + 4, halfSlitH * 2);
+    });
+  }
+
+  // detector sensors when on
+  if (P.detectorOn) {
+    [-1,1].forEach(sign => {
+      const sy = cy + sign * slitOff;
+      ctx.fillStyle = 'rgba(255,77,109,0.8)';
+      ctx.beginPath();
+      ctx.arc(barrierX + 10, sy, 5, 0, Math.PI*2);
+      ctx.fill();
+      ctx.strokeStyle = 'var(--red)';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    });
+  }
+}
+
+function drawEmitter() {
+  const {emitterX, cy} = layout();
+  const [r,g,b] = wavelengthToRGB(P.lambda);
+
+  ctx.save();
+  // glow
+  const grd = ctx.createRadialGradient(emitterX, cy, 0, emitterX, cy, 30);
+  grd.addColorStop(0, `rgba(${r},${g},${b},0.4)`);
+  grd.addColorStop(1, `rgba(${r},${g},${b},0)`);
+  ctx.fillStyle = grd;
+  ctx.fillRect(emitterX - 30, cy - 30, 60, 60);
+
+  // body
+  ctx.fillStyle = '#141d35';
+  ctx.strokeStyle = '#243355';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.roundRect(emitterX - 18, cy - 22, 36, 44, 6);
+  ctx.fill(); ctx.stroke();
+
+  // core
+  ctx.fillStyle = `rgb(${r},${g},${b})`;
+  ctx.shadowColor = `rgb(${r},${g},${b})`;
+  ctx.shadowBlur = 12;
+  ctx.beginPath();
+  ctx.arc(emitterX, cy, 6, 0, Math.PI*2);
+  ctx.fill();
+  ctx.shadowBlur = 0;
+
+  // label
+  ctx.fillStyle = '#334466';
+  ctx.font = '7px "Space Mono"';
+  ctx.textAlign = 'center';
+  ctx.fillText('SOURCE', emitterX, cy + 32);
+  ctx.restore();
+}
+
+function drawProbe() {
+  const {screenX, cy} = layout();
+  const pxF = pixMmFactor();
+  const probeY = cy - P.pd * pxF;
+  const I = intensity(P.pd);
+  const [r,g,b] = wavelengthToRGB(P.lambda);
+
+  ctx.save();
+  // dashed horizontal line
+  ctx.setLineDash([3,5]);
+  ctx.strokeStyle = `rgba(255,201,64,0.35)`;
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(screenX + 12, probeY);
+  ctx.lineTo(screenX + 60, probeY);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // probe dot
+  ctx.fillStyle = `rgba(255,201,64,0.9)`;
+  ctx.shadowColor = `rgba(255,201,64,0.8)`;
+  ctx.shadowBlur = 8;
+  ctx.beginPath();
+  ctx.arc(screenX + 5, probeY, 4, 0, Math.PI*2);
+  ctx.fill();
+  ctx.shadowBlur = 0;
+
+  // intensity label
+  ctx.font = '9px "Space Mono"';
+  ctx.fillStyle = `rgba(255,201,64,0.8)`;
+  ctx.textAlign = 'left';
+  ctx.fillText(`I=${(I*100).toFixed(0)}%`, screenX + 14, probeY - 4);
+  ctx.fillStyle = `rgba(${r},${g},${b},0.6)`;
+  ctx.fillText(`y=${P.pd.toFixed(1)}mm`, screenX + 14, probeY + 10);
+  ctx.restore();
+}
+
+// ===================================================================
+//  PARTICLES
+// ===================================================================
+class Particle {
+  constructor() {
+    const {emitterX, barrierX, screenX, cy} = layout();
+    this.x = emitterX;
+    this.y = cy;
+    this.targetX = screenX;
+    const slitOff = slitCenterOffset();
+    const slitChoice = Math.random() < 0.5 ? -slitOff : slitOff;
+    this.slitY = cy + slitChoice + (Math.random()-0.5) * pixPerMM() * P.a * 6;
+    this.phase = 'to-slit';
+    this.speed = 3 + Math.random() * 2;
+    this.alpha = 1;
+    const [r,g,b] = wavelengthToRGB(P.lambda);
+    this.color = `${r},${g},${b}`;
+
+    // final screen position weighted by intensity
+    let finalY;
+    if (P.detectorOn) {
+      finalY = cy + slitChoice + (Math.random()-0.5) * 30;
+    } else {
+      finalY = cy - sampleFromPattern() * pixMmFactor() - shift() * pixMmFactor();
+    }
+    this.finalY = finalY;
+  }
+}
+
+function sampleFromPattern() {
+  const halfR = 15; // mm range
+  let y, I, u;
+  let attempts = 0;
+  do {
+    y = (Math.random() * 2 - 1) * halfR;
+    I = intensity(y);
+    u = Math.random();
+    attempts++;
+  } while (u > I && attempts < 200);
+  return y;
+}
+
+function drawParticles() {
+  particles.forEach(p => {
+    ctx.save();
+    ctx.globalAlpha = p.alpha;
+    ctx.fillStyle = `rgb(${p.color})`;
+    ctx.shadowColor = `rgb(${p.color})`;
+    ctx.shadowBlur = 6;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, 2.5, 0, Math.PI*2);
+    ctx.fill();
+    ctx.restore();
+  });
+}
+
+function updateParticles() {
+  const {barrierX, screenX} = layout();
+  particles = particles.filter(p => p.alive !== false);
+  particles.forEach(p => {
+    if (p.phase === 'to-slit') {
+      const dx = barrierX - p.x, dy = p.slitY - p.y;
+      const dist = Math.sqrt(dx*dx+dy*dy);
+      if (dist < p.speed) {
+        p.x = barrierX; p.y = p.slitY;
+        p.phase = 'to-screen';
+      } else {
+        p.x += dx/dist * p.speed;
+        p.y += dy/dist * p.speed;
+      }
+    } else if (p.phase === 'to-screen') {
+      const dx = screenX - p.x, dy = p.finalY - p.y;
+      const dist = Math.sqrt(dx*dx+dy*dy);
+      if (dist < p.speed) {
+        p.x = screenX; p.y = p.finalY;
+        p.phase = 'hitting';
+        hitCount++;
+        document.getElementById('pcount-hits').textContent = hitCount;
+      } else {
+        p.x += dx/dist * p.speed;
+        p.y += dy/dist * p.speed;
+      }
+    } else if (p.phase === 'hitting') {
+      p.alpha -= 0.04;
+      if (p.alpha <= 0) p.alive = false;
+    }
+  });
+}
+
+function spawnParticle() {
+  particleCount++;
+  document.getElementById('pcount-num').textContent = particleCount;
+  particles.push(new Particle());
+}
+
+function resetParticles() {
+  particles = [];
+  particleCount = 0;
+  hitCount = 0;
+  document.getElementById('pcount-num').textContent = 0;
+  document.getElementById('pcount-hits').textContent = 0;
+  drawAll();
+}
+
+function toggleFire() {
+  firing = !firing;
+  const btn = document.getElementById('fire-btn');
+  if (firing) {
+    btn.textContent = '⬛ Stop';
+    btn.classList.add('firing');
+    if (fireMode === 'single') {
+      spawnParticle();
+      firing = false;
+      btn.textContent = '▶ Fire Particles';
+      btn.classList.remove('firing');
+    } else {
+      streamInterval = setInterval(() => {
+        const n = fireMode === 'stream' ? 1 : 3;
+        for(let i=0;i<n;i++) spawnParticle();
+      }, fireMode === 'stream' ? 80 : 30);
+    }
+  } else {
+    btn.textContent = '▶ Fire Particles';
+    btn.classList.remove('firing');
+    if(streamInterval){ clearInterval(streamInterval); streamInterval=null; }
+  }
+}
+
+function setMode(m) {
+  fireMode = m;
+  document.querySelectorAll('.mode-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('btn-'+m).classList.add('active');
+  if(m==='single') {
+    if(streamInterval){clearInterval(streamInterval);streamInterval=null;}
+    firing=false;
+    document.getElementById('fire-btn').textContent='▶ Fire Particles';
+    document.getElementById('fire-btn').classList.remove('firing');
+  }
+}
+
+// ===================================================================
+//  ANIMATION LOOP
+// ===================================================================
+let lastTime = 0;
+function loop(ts) {
+  if (ts - lastTime > 16) {
+    lastTime = ts;
+    updateParticles();
+    drawAll();
+    updateDerived();
+  }
+  requestAnimationFrame(loop);
+}
+
+// ===================================================================
+//  SLIDER LOGIC — BIDIRECTIONAL COUPLING
+// ===================================================================
+function onSlider(key, val) {
+  val = parseFloat(val);
+  handleChange(key, val);
+}
+
+function onValInput(key, val) {
+  val = parseFloat(val);
+  if (isNaN(val)) return;
+  handleChange(key, val);
+}
+
+function handleChange(key, val) {
+  if (key === 'lambda') {
+    P.lambda = Math.max(380, Math.min(750, val));
+    if (fwMode === 'lambda') {
+      // Don't back-calculate; user is directly setting lambda
+    }
+  } else if (key === 'a') {
+    P.a = Math.max(0.01, Math.min(P.d * 0.95, val));
+    // keep gap consistent
+  } else if (key === 'h') {
+    P.h = Math.max(0.5, Math.min(10, val));
+  } else if (key === 'd') {
+    P.d = Math.max(0.05, Math.min(2.0, val));
+    if (P.a >= P.d) P.a = P.d * 0.5;
+  } else if (key === 'gap') {
+    // gap = d - a, so changing gap changes a (keeping d fixed)
+    const newA = P.d - Math.max(0.01, val);
+    P.a = Math.max(0.01, Math.min(P.d * 0.95, newA));
+  } else if (key === 'D') {
+    P.D = Math.max(300, Math.min(3000, val * 1000)); // convert m to mm
+  } else if (key === 'pd') {
+    P.pd = Math.max(-5, Math.min(5, val));
+  } else if (key === 'beta') {
+    // REVERSE ENGINEERING
+    const betaTarget = Math.max(0.1, Math.min(20, val));
+    if (fwMode === 'd') {
+      P.d = Math.max(0.05, Math.min(2.0, P.lambda * 1e-6 * P.D / betaTarget));
+    } else if (fwMode === 'D') {
+      P.D = Math.max(300, Math.min(3000, betaTarget * P.d / (P.lambda * 1e-6)));
+    } else if (fwMode === 'lambda') {
+      P.lambda = Math.max(380, Math.min(750, betaTarget * P.d / P.D * 1e6));
+    }
+  } else if (key === 'mu') {
+    P.mu = Math.max(1.0, Math.min(2.5, val));
+  } else if (key === 't') {
+    P.t = Math.max(0, Math.min(0.1, val));
+  }
+
+  syncAllUI();
+  drawAll();
+  updateDerived();
+}
+
+function syncAllUI() {
+  // lambda
+  setSliderAndInput('lambda', P.lambda, P.lambda, 380, 750, 1);
+  updateWavelengthBar();
+
+  // a
+  setSliderAndInput('a', P.a, Math.round(P.a*100), 1, 30, null, v => v/100);
+
+  // h
+  setSliderAndInput('h', P.h, Math.round(P.h*10), 5, 100, null, v => v/10);
+
+  // d
+  setSliderAndInput('d', P.d, Math.round(P.d*100), 5, 200, null, v => v/100);
+
+  // gap
+  const gap = Math.max(0, P.d - P.a);
+  setSliderAndInput('gap', gap, Math.round(gap*100), 1, 190, null, v=>v/100);
+
+  // D (in meters for display)
+  const Dm = P.D / 1000;
+  setSliderAndInput('D', Dm, Math.round(Dm*10), 3, 30, null, v=>v/10);
+
+  // pd
+  setSliderAndInput('pd', P.pd, Math.round(P.pd*10), -50, 50, null, v=>v/10);
+
+  // beta
+  const b = beta();
+  setSliderAndInput('beta', b, Math.round(b*10), 1, 200, null, v=>v/10);
+
+  // mu
+  setSliderAndInput('mu', P.mu, Math.round(P.mu*100), 100, 250, null, v=>v/100);
+
+  // t
+  setSliderAndInput('t', P.t, Math.round(P.t*1000), 0, 100, null, v=>v/1000);
+
+  // update track fills
+  document.querySelectorAll('input[type=range]').forEach(updateTrack);
+}
+
+function setSliderAndInput(key, inputVal, sliderVal, slMin, slMax, step, slToVal) {
+  const inp = document.getElementById('val-'+key);
+  const sl  = document.getElementById('sl-'+key);
+  if (inp) inp.value = parseFloat(inputVal.toFixed(4));
+  if (sl) sl.value = sliderVal;
+}
+
+function updateTrack(sl) {
+  const pct = ((sl.value - sl.min) / (sl.max - sl.min)) * 100;
+  sl.style.setProperty('--pct', pct + '%');
+}
+
+function updateWavelengthBar() {
+  const [r,g,b] = wavelengthToRGB(P.lambda);
+  const col = `rgb(${r},${g},${b})`;
+  ['wl-bar','wl-bar2'].forEach(id => {
+    const el = document.getElementById(id);
+    if(el) el.style.background = `linear-gradient(90deg, transparent, ${col}, transparent)`;
+  });
+  const cn = document.getElementById('wl-color-name');
+  if(cn) cn.textContent = `${P.lambda}nm — ${wlColorName(P.lambda)}`;
+}
+
+function updateDerived() {
+  const b = beta(), d = deltaNm(), o = order().toFixed(2);
+  const s = shift(), ns = nshift().toFixed(2), af = angFW().toFixed(2), dm = diffMin().toFixed(2);
+  document.getElementById('dr-beta').textContent   = b.toFixed(3);
+  document.getElementById('dr-delta').textContent  = d.toFixed(1);
+  document.getElementById('dr-order').textContent  = o;
+  document.getElementById('dr-shift').textContent  = s.toFixed(3);
+  document.getElementById('dr-nshift').textContent = ns;
+  document.getElementById('dr-ang').textContent    = af;
+  document.getElementById('dr-diffmin').textContent= dm;
+
+  document.getElementById('qs-beta').textContent  = b.toFixed(2) + ' mm';
+  document.getElementById('qs-delta').textContent = d.toFixed(1) + ' nm';
+  document.getElementById('qs-shift').textContent = s.toFixed(3) + ' mm';
+
+  // insight
+  updateInsight(b, d, s);
+}
+
+function updateInsight(b, d, s) {
+  const box = document.getElementById('insight-box');
+  let text = '';
+
+  if (P.detectorOn) {
+    box.className = 'insight-box warn';
+    text = '<b>Detector ON:</b> The which-path information destroys quantum superposition. The interference pattern collapses to two classical diffraction blobs. Fringe formula β = λD/d no longer applies.';
+  } else if (P.mu > 1.02 && P.t > 0.001) {
+    box.className = 'insight-box';
+    text = `<b>Slab inserted:</b> The optical path difference (μ−1)t shifts the fringe pattern by <b>${s.toFixed(3)} mm</b> = <b>${nshift().toFixed(1)} fringes</b> upward. Central bright fringe is no longer at y=0.`;
+  } else if (Math.abs(d) < P.lambda * 0.25 && Math.abs(P.pd) > 0.1) {
+    box.className = 'insight-box';
+    text = `<b>Bright fringe at probe:</b> Path difference Δ = ${deltaNm().toFixed(0)} nm ≈ ${order().toFixed(1)}λ. Constructive interference — intensity is near maximum here.`;
+  } else if (Math.abs(Math.abs(order()) % 1 - 0.5) < 0.15) {
+    box.className = 'insight-box warn';
+    text = `<b>Dark fringe at probe:</b> Path difference Δ ≈ (${Math.round(order())}-½)λ. Destructive interference. The probe point is in a dark band.`;
+  } else if (P.a >= P.d * 0.8) {
+    box.className = 'insight-box warn';
+    text = '<b>Warning:</b> Slit width is close to slit separation. The diffraction envelope will suppress most interference fringes. Consider decreasing slit width or increasing separation.';
+  } else {
+    box.className = 'insight-box';
+    text = `Fringe width β = <b>${b.toFixed(2)} mm</b>. The interference pattern has <b>${Math.floor(diffMin() / b).toFixed(0)}</b> bright fringes visible before the first diffraction minimum. Move the path-difference probe to inspect intensity at any screen position.`;
+  }
+  box.innerHTML = text;
+}
+
+// ===================================================================
+//  DETECTOR
+// ===================================================================
+function toggleDetector() {
+  P.detectorOn = !P.detectorOn;
+  const toggle = document.getElementById('eye-toggle');
+  const label  = document.getElementById('det-label');
+  const obs    = document.getElementById('obs-status');
+  const obsT   = document.getElementById('obs-text');
+  toggle.classList.toggle('on', P.detectorOn);
+  if (P.detectorOn) {
+    label.textContent  = 'Detector ON';
+    obs.className      = 'obs-status classical';
+    obsT.textContent   = 'Classical — Particle Behavior';
+  } else {
+    label.textContent  = 'Detector OFF';
+    obs.className      = 'obs-status quantum';
+    obsT.textContent   = 'Quantum — Wave Interference';
+  }
+  resetParticles();
+  drawAll();
+  updateDerived();
+}
+
+// ===================================================================
+//  FRINGE WIDTH REVERSE MODE
+// ===================================================================
+function setFWMode(m) {
+  fwMode = m;
+  document.querySelectorAll('.fw-mode-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('fw-btn-'+m).classList.add('active');
+}
+
+// ===================================================================
+//  INIT
+// ===================================================================
+setTimeout(() => {
+  resize();
+  syncAllUI();
+  updateDerived();
+  requestAnimationFrame(loop);
+}, 50);
+</script>
+</body>
+</html>
