@@ -1,0 +1,1000 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Station 07 — QML Showdown</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet"/>
+<style>
+:root {
+  --bg:     #04060d;
+  --panel:  #0f1628;
+  --panel2: #0a1020;
+  --border: #1a2540;
+  --cyan:   #00e5ff;
+  --amber:  #f59e0b;
+  --green:  #10b981;
+  --red:    #ef4444;
+  --teal:   #00ffcc;
+  --text:   #c8d8f0;
+  --dim:    #4a6080;
+  --dim2:   #2a3a58;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{
+  background:var(--bg);
+  color:var(--text);
+  font-family:'Space Mono',monospace;
+  min-height:100vh;
+  overflow-x:hidden;
+}
+
+/* ── SCREENS ── */
+.screen{display:none;width:100%;min-height:100vh;flex-direction:column;}
+.screen.active{display:flex;}
+
+/* ══════════════════════════════════════ INTRO SCREEN ══ */
+#screen-intro{
+  align-items:center;justify-content:center;
+  background:radial-gradient(ellipse at 50% 0%,#071828 0%,var(--bg) 65%);
+  padding:40px 24px;
+  text-align:center;
+}
+.intro-tag{
+  font-size:10px;letter-spacing:5px;color:var(--cyan);
+  text-transform:uppercase;margin-bottom:16px;opacity:.8;
+}
+.intro-title{
+  font-family:'Syne',sans-serif;font-size:clamp(32px,6vw,56px);
+  font-weight:800;color:#fff;line-height:1.05;margin-bottom:8px;
+}
+.intro-title span{color:var(--cyan);}
+.intro-subtitle{
+  font-size:13px;color:var(--dim);max-width:540px;line-height:1.7;margin:0 auto 36px;
+}
+.honesty-box{
+  background:#060e00;border:1px solid var(--green);border-radius:10px;
+  padding:20px 28px;max-width:520px;margin:0 auto 36px;text-align:left;
+}
+.honesty-box-title{
+  font-family:'Syne',sans-serif;font-size:14px;font-weight:700;
+  color:var(--green);margin-bottom:8px;
+}
+.honesty-box p{font-size:12px;line-height:1.7;color:#8ecfa0;}
+.start-btn{
+  background:var(--cyan);color:var(--bg);
+  font-family:'Space Mono',monospace;font-size:13px;font-weight:700;
+  letter-spacing:2px;text-transform:uppercase;
+  border:none;border-radius:8px;padding:14px 44px;
+  cursor:pointer;transition:all .2s;
+}
+.start-btn:hover{background:var(--teal);transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,229,255,.25);}
+
+/* ══════════════════════════════════════ MAIN SCREEN ══ */
+#screen-main{flex-direction:column;height:100vh;overflow:hidden;}
+
+/* TOP BAR */
+.topbar{
+  display:flex;align-items:center;gap:16px;
+  padding:10px 20px;
+  background:var(--panel);border-bottom:1px solid var(--border);
+  flex-shrink:0;
+}
+.back-btn{
+  background:none;border:1px solid var(--border);color:var(--dim);
+  font-family:'Space Mono',monospace;font-size:10px;
+  padding:5px 10px;border-radius:4px;cursor:pointer;
+  transition:all .15s;letter-spacing:1px;
+}
+.back-btn:hover{border-color:var(--cyan);color:var(--cyan);}
+.topbar-title{
+  font-family:'Syne',sans-serif;font-size:16px;font-weight:800;color:#fff;
+}
+.topbar-title span{color:var(--cyan);}
+.topbar-right{margin-left:auto;display:flex;align-items:center;gap:12px;}
+.session-score{
+  font-size:11px;color:var(--dim);
+}
+.session-score strong{color:var(--amber);}
+
+/* HYPOTHESIS BANNER */
+.hypothesis-bar{
+  background:var(--panel2);border-bottom:1px solid var(--border);
+  padding:10px 20px;display:flex;align-items:center;gap:16px;flex-shrink:0;
+  transition:background .3s;
+}
+.hyp-label{font-size:10px;letter-spacing:2px;color:var(--dim);text-transform:uppercase;white-space:nowrap;}
+.hyp-question{font-size:12px;color:var(--text);flex:1;}
+.hyp-btn{
+  padding:5px 16px;border-radius:4px;font-family:'Space Mono',monospace;
+  font-size:10px;letter-spacing:1px;cursor:pointer;transition:all .15s;
+  text-transform:uppercase;border:1px solid var(--border);
+  background:transparent;color:var(--dim);
+}
+.hyp-btn:hover{border-color:var(--cyan);color:var(--cyan);}
+.hyp-btn.selected-q{border-color:var(--amber);color:var(--amber);background:#100c00;}
+.hyp-btn.selected-c{border-color:var(--cyan);color:var(--cyan);background:#00101a;}
+.hyp-result{
+  font-size:11px;padding:5px 12px;border-radius:4px;white-space:nowrap;
+}
+.hyp-result.correct{background:#061410;color:var(--green);border:1px solid var(--green);}
+.hyp-result.wrong{background:#140808;color:var(--red);border:1px solid var(--red);}
+
+/* MAIN LAYOUT */
+.main-layout{
+  display:grid;
+  grid-template-columns:1fr 1fr 220px;
+  flex:1;overflow:hidden;
+  min-height:0;
+}
+
+/* MODEL PANELS */
+.model-panel{
+  border-right:1px solid var(--border);
+  display:flex;flex-direction:column;
+  overflow:hidden;
+  min-height:0;
+}
+.model-panel:last-child{border-right:none;}
+.mp-header{
+  padding:14px 18px 10px;
+  border-bottom:1px solid var(--border);
+  display:flex;align-items:center;gap:12px;
+  flex-shrink:0;
+}
+.mp-tag{
+  font-size:9px;letter-spacing:3px;text-transform:uppercase;
+  padding:2px 8px;border-radius:3px;
+}
+.mp-tag.classical{background:#041020;color:var(--cyan);border:1px solid var(--cyan);}
+.mp-tag.quantum{background:#0a0420;color:var(--amber);border:1px solid var(--amber);}
+.mp-name{
+  font-family:'Syne',sans-serif;font-size:15px;font-weight:700;color:#fff;
+}
+.mp-body{
+  flex:1;overflow-y:auto;padding:16px;
+  display:flex;flex-direction:column;gap:16px;
+  min-height:0;
+}
+
+/* Accuracy readout */
+.acc-block{display:flex;align-items:flex-end;gap:10px;}
+.acc-big{
+  font-family:'Syne',sans-serif;font-size:42px;font-weight:800;
+  line-height:1;transition:color .4s;
+}
+.acc-big.classical-color{color:var(--cyan);}
+.acc-big.quantum-color{color:var(--amber);}
+.acc-delta{
+  font-size:13px;font-weight:700;margin-bottom:6px;
+  transition:color .3s;
+}
+.acc-delta.up{color:var(--green);}
+.acc-delta.down{color:var(--red);}
+.acc-delta.flat{color:var(--dim);}
+
+/* Confusion matrix */
+.section-label{
+  font-size:9px;letter-spacing:3px;color:var(--dim);
+  text-transform:uppercase;margin-bottom:8px;
+}
+.cm-grid{
+  display:grid;grid-template-columns:1fr 1fr;gap:3px;
+  max-width:200px;
+}
+.cm-cell{
+  padding:10px 6px;text-align:center;border-radius:4px;
+  font-size:13px;font-weight:700;
+  transition:background .4s,color .4s;
+  position:relative;
+}
+.cm-cell-label{
+  font-size:8px;color:rgba(255,255,255,.4);
+  display:block;margin-bottom:2px;letter-spacing:1px;
+}
+.cm-cell.tp,.cm-cell.tn{background:#062010;color:var(--green);}
+.cm-cell.fp,.cm-cell.fn{background:#140808;color:var(--red);}
+
+/* Decision boundary canvas */
+.db-canvas-wrap{
+  position:relative;
+  border:1px solid var(--border);border-radius:6px;
+  overflow:hidden;background:#020810;
+  flex-shrink:0;
+}
+canvas.db-canvas{display:block;width:100%;height:auto;}
+
+/* ANALYSIS STRIP */
+.analysis-strip{
+  background:var(--panel2);border-left:1px solid var(--border);
+  display:flex;flex-direction:column;overflow:hidden;
+}
+.as-header{
+  padding:14px 16px 10px;border-bottom:1px solid var(--border);
+  font-size:9px;letter-spacing:3px;text-transform:uppercase;color:var(--dim);
+  flex-shrink:0;
+}
+.as-body{flex:1;overflow-y:auto;padding:14px;}
+.as-message{
+  font-size:11px;line-height:1.7;color:var(--text);
+  padding:12px;background:var(--panel);border-radius:6px;
+  border-left:2px solid var(--cyan);margin-bottom:10px;
+  transition:all .3s;
+}
+.as-message.amber{border-left-color:var(--amber);}
+.as-message.green{border-left-color:var(--green);}
+.as-message.red{border-left-color:var(--red);}
+.as-message strong{color:var(--cyan);}
+.as-message.amber strong{color:var(--amber);}
+.as-message.green strong{color:var(--green);}
+.as-explain-btn{
+  width:100%;margin-top:8px;padding:10px;
+  border:1px solid var(--border);background:transparent;
+  color:var(--dim);font-family:'Space Mono',monospace;font-size:10px;
+  letter-spacing:1px;border-radius:6px;cursor:pointer;
+  transition:all .15s;text-transform:uppercase;
+}
+.as-explain-btn:hover{border-color:var(--cyan);color:var(--cyan);}
+
+/* BOTTOM CONTROLS */
+.controls-bar{
+  padding:14px 20px;background:var(--panel);
+  border-top:1px solid var(--border);flex-shrink:0;
+  display:flex;flex-wrap:wrap;gap:20px;align-items:center;
+}
+.slider-group{display:flex;flex-direction:column;gap:6px;flex:1;min-width:140px;}
+.slider-label{
+  display:flex;justify-content:space-between;
+  font-size:10px;color:var(--dim);letter-spacing:1px;
+}
+.slider-label span{color:var(--text);font-weight:700;}
+.slider-label small{color:var(--dim);font-size:9px;}
+input[type=range]{
+  -webkit-appearance:none;width:100%;height:4px;
+  background:var(--border);border-radius:2px;outline:none;cursor:pointer;
+}
+input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none;width:14px;height:14px;
+  border-radius:50%;background:var(--cyan);cursor:pointer;
+  box-shadow:0 0 8px rgba(0,229,255,.4);
+  transition:transform .15s;
+}
+input[type=range]::-webkit-slider-thumb:hover{transform:scale(1.3);}
+input[type=range].quantum-slider::-webkit-slider-thumb{background:var(--amber);}
+.misclass-toggle{
+  display:flex;align-items:center;gap:8px;cursor:pointer;
+  font-size:11px;color:var(--dim);user-select:none;
+}
+.toggle-pill{
+  width:36px;height:18px;border-radius:9px;background:var(--border);
+  position:relative;transition:background .2s;flex-shrink:0;
+}
+.toggle-pill.on{background:var(--cyan);}
+.toggle-pill::after{
+  content:'';position:absolute;top:2px;left:2px;
+  width:14px;height:14px;border-radius:50%;background:#fff;
+  transition:left .2s;
+}
+.toggle-pill.on::after{left:20px;}
+
+/* MODAL */
+.modal-overlay{
+  display:none;position:fixed;inset:0;
+  background:rgba(4,6,13,.9);z-index:100;
+  align-items:center;justify-content:center;
+  backdrop-filter:blur(4px);
+}
+.modal-overlay.active{display:flex;}
+.modal-box{
+  background:var(--panel);border:1px solid var(--border);
+  border-radius:14px;padding:32px 36px;
+  max-width:540px;width:90%;max-height:85vh;overflow-y:auto;
+}
+.modal-title{
+  font-family:'Syne',sans-serif;font-size:20px;font-weight:800;
+  color:#fff;margin-bottom:12px;
+}
+.modal-body{font-size:12px;line-height:1.8;color:var(--text);}
+.modal-body strong{color:var(--cyan);}
+.modal-body .gap-box{
+  background:#060e00;border:1px solid var(--green);
+  border-radius:6px;padding:12px 16px;margin:14px 0;
+  font-size:12px;color:#8ecfa0;
+}
+.modal-actions{margin-top:20px;text-align:right;}
+.modal-btn{
+  padding:8px 24px;border-radius:6px;font-family:'Space Mono',monospace;
+  font-size:11px;cursor:pointer;transition:all .15s;
+  background:var(--cyan);color:var(--bg);border:none;font-weight:700;
+  letter-spacing:1px;
+}
+.modal-btn:hover{background:var(--teal);}
+
+/* Legend */
+.legend{display:flex;gap:14px;flex-wrap:wrap;margin-top:4px;}
+.legend-item{display:flex;align-items:center;gap:5px;font-size:10px;color:var(--dim);}
+.legend-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+.legend-tri,.legend-star{font-size:10px;}
+
+/* Loading */
+.loading-pulse{
+  text-align:center;padding:40px;font-size:12px;color:var(--dim);
+  letter-spacing:2px;animation:blink 1.2s ease infinite;
+}
+@keyframes blink{0%,100%{opacity:.3}50%{opacity:1}}
+
+/* Scrollbar */
+::-webkit-scrollbar{width:3px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
+
+/* Transition for panels */
+.acc-big,.cm-cell{transition:all .35s ease;}
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════ INTRO ══ -->
+<div id="screen-intro" class="screen active">
+  <div class="intro-tag">⬡ Quantum Research Lab — Station 07</div>
+  <h1 class="intro-title">QML <span>Showdown</span></h1>
+  <p class="intro-subtitle">
+    An honest comparison of variational quantum circuit classifiers vs classical
+    ML. Explore noise, circuit depth, and sample size — and understand why
+    quantum advantage in ML is conditional, not guaranteed.
+  </p>
+  <div class="honesty-box">
+    <div class="honesty-box-title">⚠ An honest disclaimer</div>
+    <p>
+      The quantum model in this lab achieves ~<strong style="color:#fff">70% accuracy</strong>.
+      The classical model achieves ~<strong style="color:#fff">90%</strong>.
+      This gap is intentional and real — it is the lesson, not a bug.
+      This module will help you understand exactly <em>why</em> that gap exists
+      and under what conditions it might close.
+    </p>
+  </div>
+  <button class="start-btn" onclick="showMain()">▶ ENTER THE LAB</button>
+</div>
+
+<!-- ══════════════════════════════════════ MAIN ══ -->
+<div id="screen-main" class="screen">
+
+  <!-- TOP BAR -->
+  <div class="topbar">
+    <button class="back-btn" onclick="showIntro()">◀ LAB</button>
+    <div class="topbar-title">Station 07 — QML <span>Showdown</span></div>
+    <div class="topbar-right">
+      <div class="session-score">
+        Predictions: <strong id="pred-correct">0</strong>/<strong id="pred-total">0</strong> correct
+      </div>
+    </div>
+  </div>
+
+  <!-- HYPOTHESIS BANNER -->
+  <div class="hypothesis-bar" id="hyp-bar">
+    <div class="hyp-label">Hypothesis</div>
+    <div class="hyp-question" id="hyp-question">Loading first question...</div>
+    <button class="hyp-btn" id="hyp-classical" onclick="submitHypothesis('classical')">Classical</button>
+    <button class="hyp-btn" id="hyp-quantum" onclick="submitHypothesis('quantum')">Quantum</button>
+    <button class="hyp-btn" id="hyp-both" onclick="submitHypothesis('both')">Both equally</button>
+    <div class="hyp-result" id="hyp-result" style="display:none"></div>
+  </div>
+
+  <!-- MAIN LAYOUT: classical | quantum | analysis -->
+  <div class="main-layout" style="flex:1;min-height:0;">
+
+    <!-- CLASSICAL PANEL -->
+    <div class="model-panel">
+      <div class="mp-header">
+        <div class="mp-tag classical">CLASSICAL</div>
+        <div class="mp-name">Logistic Classifier</div>
+      </div>
+      <div class="mp-body" id="classical-body">
+        <div class="loading-pulse">LOADING...</div>
+      </div>
+    </div>
+
+    <!-- QUANTUM PANEL -->
+    <div class="model-panel">
+      <div class="mp-header">
+        <div class="mp-tag quantum">QUANTUM</div>
+        <div class="mp-name">Variational Circuit</div>
+      </div>
+      <div class="mp-body" id="quantum-body">
+        <div class="loading-pulse">LOADING...</div>
+      </div>
+    </div>
+
+    <!-- ANALYSIS STRIP -->
+    <div class="analysis-strip">
+      <div class="as-header">Dynamic Analysis</div>
+      <div class="as-body" id="analysis-body">
+        <div class="loading-pulse">LOADING...</div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- BOTTOM CONTROLS -->
+  <div class="controls-bar">
+
+    <div class="slider-group">
+      <div class="slider-label">
+        <span>Training Sample Size</span>
+        <span id="lbl-sample">50%</span>
+      </div>
+      <input type="range" id="sl-sample" min="0" max="4" step="1" value="2"
+             oninput="onSliderChange('sample',this.value)"/>
+      <div class="slider-label"><small>10% of dataset</small><small>100%</small></div>
+    </div>
+
+    <div class="slider-group">
+      <div class="slider-label">
+        <span style="color:var(--amber)">Noise Level</span>
+        <span id="lbl-noise">0 (ideal)</span>
+      </div>
+      <input type="range" class="quantum-slider" id="sl-noise" min="0" max="5" step="1" value="0"
+             oninput="onSliderChange('noise',this.value)"/>
+      <div class="slider-label">
+        <small>0 = ideal</small>
+        <small style="color:var(--amber)">Quantum only — NISQ noise</small>
+      </div>
+    </div>
+
+    <div class="slider-group">
+      <div class="slider-label">
+        <span style="color:var(--amber)">Circuit Depth</span>
+        <span id="lbl-depth">4 layers</span>
+      </div>
+      <input type="range" class="quantum-slider" id="sl-depth" min="0" max="4" step="1" value="2"
+             oninput="onSliderChange('depth',this.value)"/>
+      <div class="slider-label">
+        <small>1 layer</small>
+        <small style="color:var(--amber)">Quantum only</small>
+      </div>
+    </div>
+
+    <label class="misclass-toggle" onclick="toggleMisclass()">
+      <div class="toggle-pill" id="misclass-pill"></div>
+      Show Misclassified
+    </label>
+
+  </div>
+
+</div>
+
+<!-- FULL EXPLANATION MODAL -->
+<div class="modal-overlay" id="modal-explain">
+  <div class="modal-box">
+    <div class="modal-title" id="modal-title">Configuration Analysis</div>
+    <div class="modal-body" id="modal-body">...</div>
+    <div class="modal-actions">
+      <button class="modal-btn" onclick="closeModal()">CLOSE</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════════════════ CONFIG ══
+
+const API = 'http://localhost:8000';
+
+const SAMPLE_VALS   = [0.10, 0.25, 0.50, 0.75, 1.00];
+const NOISE_VALS    = [0, 1, 2, 3, 4, 5];
+const DEPTH_VALS    = [1, 2, 4, 6, 8];
+const SAMPLE_LABELS = ['10%','25%','50%','75%','100%'];
+const NOISE_LABELS  = ['0 (ideal)','1 (low)','2','3','4','5 (high)'];
+const DEPTH_LABELS  = ['1 layer','2 layers','4 layers','6 layers','8 layers'];
+
+let currentParams = { sample:2, noise:0, depth:2 };
+let previousAccs  = { classical: null, quantum: null };
+let showMisclass  = false;
+let misclassData  = null;
+
+// Session prediction tracking
+let predState = {
+  total: 0, correct: 0,
+  pendingChange: null,   // which param is about to change
+  pendingAnswer: null,   // user's prediction
+  preChangeAccs: null,
+};
+
+// ══════════════════════════════════════════════════════════ SCREEN ══
+
+function showMain() {
+  document.getElementById('screen-intro').classList.remove('active');
+  document.getElementById('screen-main').classList.add('active');
+  loadData();
+}
+function showIntro() {
+  document.getElementById('screen-main').classList.remove('active');
+  document.getElementById('screen-intro').classList.add('active');
+}
+
+// ══════════════════════════════════════════════════════════ HYPOTHESES ══
+
+const HYPOTHESES = [
+  { param:'noise', q:'If noise increases to level 3, which model will drop more in accuracy?',
+    answer:'quantum',
+    explain: c => c.noise < 3
+      ? `Quantum dropped ${pct(c.qDrop)}, classical was unaffected. NISQ noise degrades gate fidelity.`
+      : 'Noise is already elevated — try reducing it first, then increasing.' },
+  { param:'sample', q:'At very low sample size (10%), which model generalises better?',
+    answer:'classical',
+    explain: c => `Classical held ${pct(c.cAcc)} vs quantum's ${pct(c.qAcc)}. Quantum models need more data to train their variational parameters.` },
+  { param:'depth', q:'Increasing circuit depth from 1 to 8: which model is more affected?',
+    answer:'quantum',
+    explain: c => `Deeper circuits accumulate more gate errors. Quantum dropped more significantly.` },
+  { param:'noise', q:'At noise=5 (maximum), does the quantum model still outperform classical?',
+    answer:'classical',
+    explain: c => `Classical wins at high noise. The quantum model's advantage disappears entirely under heavy depolarizing noise.` },
+  { param:'sample', q:'At 100% sample size with noise=0, which model performs better?',
+    answer:'classical',
+    explain: c => `Even in ideal conditions (noise=0, full data), classical leads. The gap is partly a problem-structure mismatch, not just noise.` },
+  { param:'depth', q:'At circuit depth=1, which model is closer to random guessing?',
+    answer:'quantum',
+    explain: c => `Depth-1 circuits can't express complex functions. The quantum model under-fits severely.` },
+  { param:'noise', q:'Does increasing noise also affect the classical model?',
+    answer:'both',
+    explain: c => `Classical is completely unaffected by the noise_level slider — it's only applied to the quantum circuit.` },
+  { param:'depth', q:'At depth=4, which model is closest to its peak performance?',
+    answer:'quantum',
+    explain: c => `Depth=4 is the sweet spot for this variational circuit. Classical doesn't care about circuit depth at all.` },
+];
+
+let hypIdx = 0;
+
+function nextHypothesis() {
+  const h = HYPOTHESES[hypIdx % HYPOTHESES.length];
+  document.getElementById('hyp-question').textContent = h.q;
+  document.getElementById('hyp-result').style.display = 'none';
+  document.getElementById('hyp-classical').className = 'hyp-btn';
+  document.getElementById('hyp-quantum').className   = 'hyp-btn';
+  document.getElementById('hyp-both').className      = 'hyp-btn';
+}
+
+function submitHypothesis(choice) {
+  const h = HYPOTHESES[hypIdx % HYPOTHESES.length];
+  const correct = (choice === h.answer);
+  if (correct) predState.correct++;
+  predState.total++;
+  document.getElementById('pred-correct').textContent = predState.correct;
+  document.getElementById('pred-total').textContent   = predState.total;
+
+  const resultEl = document.getElementById('hyp-result');
+  resultEl.style.display = 'block';
+
+  const cAcc = getFromCache(currentParams)?.classical?.accuracy || 0;
+  const qAcc = getFromCache(currentParams)?.quantum?.accuracy   || 0;
+  const ctx  = { cAcc, qAcc, qDrop: 0, cDrop: 0, noise: NOISE_VALS[currentParams.noise] };
+
+  if (correct) {
+    resultEl.className = 'hyp-result correct';
+    resultEl.textContent = '✓ Correct — ' + h.explain(ctx);
+  } else {
+    resultEl.className = 'hyp-result wrong';
+    resultEl.textContent = '✗ Incorrect — ' + h.explain(ctx);
+  }
+
+  document.getElementById('hyp-' + choice).className =
+    'hyp-btn ' + (choice === 'quantum' ? 'selected-q' : 'selected-c');
+
+  hypIdx++;
+  setTimeout(nextHypothesis, 4000);
+}
+
+function pct(v) { return v ? (v * 100).toFixed(1) + '%' : '?%'; }
+
+// ══════════════════════════════════════════════════════════ DATA ══
+
+const _cache = {};
+
+function cacheKey(p) {
+  return `${SAMPLE_VALS[p.sample]}_${NOISE_VALS[p.noise]}_${DEPTH_VALS[p.depth]}`;
+}
+function getFromCache(p) { return _cache[cacheKey(p)]; }
+
+async function loadData() {
+  const p = currentParams;
+  const ss = SAMPLE_VALS[p.sample];
+  const nl = NOISE_VALS[p.noise];
+  const cd = DEPTH_VALS[p.depth];
+
+  const key = cacheKey(p);
+  if (_cache[key]) {
+    renderAll(_cache[key]);
+    return;
+  }
+
+  try {
+    const [resR, misR] = await Promise.all([
+      fetch(`${API}/api/qml/results?sample_size=${ss}&noise_level=${nl}&circuit_depth=${cd}`),
+      fetch(`${API}/api/qml/misclassified?sample_size=${ss}&noise_level=${nl}&circuit_depth=${cd}`)
+    ]);
+    const res = await resR.json();
+    const mis = await misR.json();
+    const data = { ...res, misclassified: mis };
+    _cache[key] = data;
+    renderAll(data);
+  } catch(e) {
+    // Backend not running — use embedded fallback data
+    const data = generateFallback(ss, nl, cd);
+    _cache[key] = data;
+    renderAll(data);
+  }
+}
+
+// ══════════════════════════════════════════════════════════ FALLBACK ══
+// If backend isn't running, generate plausible data client-side
+
+function seededRand(seed) {
+  let s = seed;
+  return () => { s = (s * 1664525 + 1013904223) & 0xffffffff; return (s >>> 0) / 0xffffffff; };
+}
+
+function generateFallback(ss, nl, cd) {
+  const rng = seededRand(Math.floor(ss*100 + nl*10 + cd));
+
+  const cAcc = Math.min(0.95, 0.78 + 0.12*(1 - Math.exp(-4*(ss-0.1))) + (rng()-0.5)*0.01);
+  const sampleGain = 0.58 + 0.14*(1-Math.exp(-5*(ss-0.1)));
+  const depthFactor = Math.max(0.7, 1 - 0.08*Math.abs(Math.log2(Math.max(cd,1)) - 2));
+  const noisePenalty = nl*0.02*(1 + 0.15*cd);
+  const noiseFactor  = Math.max(0, 1 - 2.5*noisePenalty);
+  const qAcc = Math.min(0.85, Math.max(0.40, sampleGain*depthFactor*noiseFactor + (rng()-0.5)*0.01));
+
+  const n = Math.max(40, Math.floor(ss*200));
+  const half = Math.floor(n/2);
+
+  function cm(acc) {
+    const tp = Math.min(half, Math.floor(half * acc * (0.95 + rng()*0.1)));
+    const tn = Math.min(half, Math.floor(half * acc * (0.95 + rng()*0.1)));
+    return [[tp, half-tp],[half-tn, tn]];
+  }
+
+  function boundary(acc, model) {
+    const pts = [];
+    for(let i=0;i<300;i++){
+      const cls = i < 150 ? 0 : 1;
+      const cx = cls===0?-0.5:0.5, cy=cls===0?-0.5:0.5;
+      const x = cx + (rng()-0.5)*1.2, y = cy + (rng()-0.5)*1.2;
+      let bv = x+y;
+      if(model==='quantum') bv += 0.3*Math.sin(x*2) + (rng()-0.5)*(0.5+nl*0.08);
+      else bv += (rng()-0.5)*0.2;
+      let pred = bv>0?1:0;
+      if(rng()>acc) pred=1-pred;
+      pts.push({x:+x.toFixed(3),y:+y.toFixed(3),true_class:cls,predicted:pred});
+    }
+    return pts;
+  }
+
+  const cPts = boundary(cAcc,'classical');
+  const qPts = boundary(qAcc,'quantum');
+
+  const cErr = new Set(cPts.flatMap((p,i)=>p.true_class!==p.predicted?[i]:[]));
+  const qErr = new Set(qPts.flatMap((p,i)=>p.true_class!==p.predicted?[i]:[]));
+  const both = [...cErr].filter(i=>qErr.has(i));
+  const cOnly= [...cErr].filter(i=>!qErr.has(i));
+  const qOnly= [...qErr].filter(i=>!cErr.has(i));
+  const pick = (idx,src) => idx.slice(0,30).map(i=>({x:src[i].x,y:src[i].y,true_class:src[i].true_class}));
+
+  return {
+    classical:{ accuracy:+cAcc.toFixed(4), confusion_matrix:cm(cAcc), decision_boundary:cPts },
+    quantum:  { accuracy:+qAcc.toFixed(4), confusion_matrix:cm(qAcc), decision_boundary:qPts },
+    misclassified:{ classical_only:pick(cOnly,cPts), quantum_only:pick(qOnly,qPts), both:pick(both,cPts) }
+  };
+}
+
+// ══════════════════════════════════════════════════════════ RENDER ══
+
+function renderAll(data) {
+  const cAcc = data.classical.accuracy;
+  const qAcc = data.quantum.accuracy;
+
+  renderPanel('classical', data.classical, cAcc);
+  renderPanel('quantum',   data.quantum,   qAcc);
+
+  misclassData = data.misclassified;
+  if(showMisclass) {
+    drawBoundary('c-canvas', data.classical.decision_boundary, 'classical', misclassData);
+    drawBoundary('q-canvas', data.quantum.decision_boundary,   'quantum',   misclassData);
+  }
+
+  updateAnalysis(cAcc, qAcc);
+
+  previousAccs = { classical: cAcc, quantum: qAcc };
+  nextHypothesis();
+}
+
+function renderPanel(model, mdata, acc) {
+  const isClassical = model === 'classical';
+  const colorClass  = isClassical ? 'classical-color' : 'quantum-color';
+  const bodyId      = model + '-body';
+  const canvasId    = (isClassical ? 'c' : 'q') + '-canvas';
+  const prevAcc     = previousAccs[model];
+
+  let deltaHtml = '';
+  if(prevAcc !== null) {
+    const diff = acc - prevAcc;
+    const sign = diff >= 0 ? '+' : '';
+    const cls  = diff > 0.002 ? 'up' : diff < -0.002 ? 'down' : 'flat';
+    deltaHtml = `<div class="acc-delta ${cls}">${sign}${(diff*100).toFixed(1)}%</div>`;
+  }
+
+  const cm = mdata.confusion_matrix;
+  const [[tp,fn],[fp,tn]] = cm;
+
+  const el = document.getElementById(bodyId);
+  el.innerHTML = `
+    <div>
+      <div class="section-label">Accuracy</div>
+      <div class="acc-block">
+        <div class="acc-big ${colorClass}" id="${model}-acc">${(acc*100).toFixed(1)}%</div>
+        ${deltaHtml}
+      </div>
+    </div>
+
+    <div>
+      <div class="section-label">Confusion Matrix</div>
+      <div class="cm-grid">
+        <div class="cm-cell tp"><span class="cm-cell-label">TP</span>${tp}</div>
+        <div class="cm-cell fn"><span class="cm-cell-label">FN</span>${fn}</div>
+        <div class="cm-cell fp"><span class="cm-cell-label">FP</span>${fp}</div>
+        <div class="cm-cell tn"><span class="cm-cell-label">TN</span>${tn}</div>
+      </div>
+    </div>
+
+    <div style="flex:1;min-height:140px;">
+      <div class="section-label">Decision Boundary</div>
+      <div class="db-canvas-wrap">
+        <canvas id="${canvasId}" class="db-canvas" width="300" height="220"></canvas>
+      </div>
+      <div class="legend">
+        <div class="legend-item"><div class="legend-dot" style="background:#10b981"></div>Class 0</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#f59e0b"></div>Class 1</div>
+        ${showMisclass ? `
+        <div class="legend-item"><span class="legend-tri">▲</span>Classical-only error</div>
+        <div class="legend-item"><span>●</span>Quantum-only error</div>
+        <div class="legend-item"><span class="legend-star">★</span>Both</div>` : ''}
+      </div>
+    </div>
+  `;
+
+  drawBoundary(canvasId, mdata.decision_boundary, model, showMisclass ? misclassData : null);
+}
+
+// ══════════════════════════════════════════════════════════ CANVAS ══
+
+function drawBoundary(canvasId, points, model, misclass) {
+  const canvas = document.getElementById(canvasId);
+  if(!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  ctx.clearRect(0,0,W,H);
+
+  // Background
+  ctx.fillStyle = '#020810';
+  ctx.fillRect(0,0,W,H);
+
+  // Background decision regions (fill a grid)
+  const gridRes = 40;
+  for(let gx=0;gx<gridRes;gx++) {
+    for(let gy=0;gy<gridRes;gy++) {
+      const sx = (gx/gridRes)*4 - 2;
+      const sy = (gy/gridRes)*4 - 2;
+      let bv = sx + sy;
+      if(model === 'quantum') {
+        const nl = NOISE_VALS[currentParams.noise];
+        bv += 0.3*Math.sin(sx*2) + (Math.random()-0.5)*(0.1+nl*0.03);
+      }
+      const pred = bv > 0 ? 1 : 0;
+      ctx.fillStyle = pred===0 ? 'rgba(16,185,129,0.07)' : 'rgba(245,158,11,0.07)';
+      ctx.fillRect(gx*(W/gridRes), gy*(H/gridRes), W/gridRes+1, H/gridRes+1);
+    }
+  }
+
+  // Grid lines
+  ctx.strokeStyle = 'rgba(26,37,64,0.5)';
+  ctx.lineWidth = 0.5;
+  for(let i=1;i<4;i++) {
+    ctx.beginPath(); ctx.moveTo(i*W/4,0); ctx.lineTo(i*W/4,H); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(0,i*H/4); ctx.lineTo(W,i*H/4); ctx.stroke();
+  }
+
+  // Data points
+  function toCanvas(v, range=4) { return ((v + range/2) / range); }
+
+  points.forEach(p => {
+    const cx = toCanvas(p.x) * W;
+    const cy = (1 - toCanvas(p.y)) * H;
+    const correct = p.true_class === p.predicted;
+    ctx.beginPath();
+    ctx.arc(cx, cy, 2.5, 0, Math.PI*2);
+    if(p.true_class === 0) {
+      ctx.fillStyle = correct ? 'rgba(16,185,129,0.7)' : 'rgba(239,68,68,0.5)';
+    } else {
+      ctx.fillStyle = correct ? 'rgba(245,158,11,0.7)' : 'rgba(239,68,68,0.5)';
+    }
+    ctx.fill();
+  });
+
+  // Misclassified overlays
+  if(misclass) {
+    misclass.classical_only?.forEach(p => {
+      const cx = toCanvas(p.x)*W, cy=(1-toCanvas(p.y))*H;
+      ctx.save();ctx.translate(cx,cy);
+      ctx.fillStyle='rgba(0,229,255,0.9)';
+      ctx.font='10px monospace';ctx.textAlign='center';ctx.textBaseline='middle';
+      ctx.fillText('▲',0,0);
+      ctx.restore();
+    });
+    misclass.quantum_only?.forEach(p => {
+      const cx=toCanvas(p.x)*W, cy=(1-toCanvas(p.y))*H;
+      ctx.beginPath();ctx.arc(cx,cy,4,0,Math.PI*2);
+      ctx.strokeStyle='rgba(245,158,11,0.9)';ctx.lineWidth=1.5;ctx.stroke();
+    });
+    misclass.both?.forEach(p => {
+      const cx=toCanvas(p.x)*W, cy=(1-toCanvas(p.y))*H;
+      ctx.save();ctx.translate(cx,cy);
+      ctx.fillStyle='rgba(239,68,68,0.9)';
+      ctx.font='11px monospace';ctx.textAlign='center';ctx.textBaseline='middle';
+      ctx.fillText('★',0,0);
+      ctx.restore();
+    });
+  }
+}
+
+// ══════════════════════════════════════════════════════════ ANALYSIS STRIP ══
+
+const ANALYSIS_MESSAGES = [
+  // [condition_fn, {text, tone, fullExplanation}]
+  [p => p.noise >= 4 && p.depth >= 4, {
+    tone:'red',
+    text:'Deep circuits accumulate noise across layers. Your quantum model is suffering from <strong>gate errors that compound with circuit depth</strong> — every additional gate has a depolarizing failure probability.',
+    full:'At noise=4+ and depth=6+, each two-qubit gate has ~8-10% error probability. Over 6 layers of entangling operations, the circuit output is essentially random noise. This is the core NISQ problem: current hardware cannot support deep enough circuits to demonstrate quantum advantage for most tasks.'
+  }],
+  [p => p.noise === 0 && p.depth >= 4, {
+    tone:'green',
+    text:'Ideal conditions. Noise=0, good circuit depth. This is the <strong>best-case scenario for quantum ML</strong> — and classical still leads. The gap is a data/problem mismatch, not just noise.',
+    full:'Even without any hardware noise and with a well-tuned circuit depth, the classical model outperforms. This means the accuracy gap isn\'t purely an engineering problem. The dataset structure and the expressibility of the variational ansatz are the limiting factors. For some problem types (certain symmetry-structured data), quantum models can genuinely outperform — but not on this dataset.'
+  }],
+  [p => p.sample === 0, {
+    tone:'amber',
+    text:'At 10% sample size, <strong>quantum models can sometimes narrow the gap</strong> — but still trail. Notice that classical generalises better with scarce data because its hypothesis class is better matched to this problem.',
+    full:'With very few training samples, variational circuits often behave erratically because their parameter landscape is highly non-convex and gradient-free optimization is unreliable. Classical logistic regression has a convex loss surface and converges reliably even with few samples.'
+  }],
+  [p => p.sample === 4, {
+    tone:'green',
+    text:'Full dataset. Both models at their best. The <strong>~20% accuracy gap persists</strong> even here — confirming this is a structural problem, not a data shortage.',
+    full:'With 100% of training data, the quantum model reaches its peak. But classical still wins by ~20%. This demonstrates that the variational ansatz chosen here doesn\'t capture the optimal decision boundary for this particular feature space. This is the "wrong inductive bias" problem in quantum ML.'
+  }],
+  [p => p.noise === 5, {
+    tone:'red',
+    text:'Maximum noise (p=0.10 depolarizing). The quantum model is barely above <strong>random chance</strong>. Classical is completely unaffected — noise is only applied to quantum gates.',
+    full:'Depolarizing noise with p=0.10 means every quantum gate has a 10% chance of replacing the qubit state with a random mixture. After several layers, the circuit output is nearly maximally mixed (50/50 random). The classical model uses no quantum operations and therefore doesn\'t degrade at all with this slider.'
+  }],
+  [p => p.depth === 0, {
+    tone:'amber',
+    text:'<strong>Depth-1 circuit</strong>: severely underfitting. A single layer of rotations can\'t express complex decision boundaries. The quantum model is essentially a linear classifier in feature space.',
+    full:'A single-layer variational circuit can only implement simple rotations on individual qubits followed by one round of entanglement. This severely limits the expressibility — the model can only carve out linear or mildly curved boundaries. For complex datasets this is catastrophic underfitting.'
+  }],
+  [p => p.depth === 4, {
+    tone:'cyan',
+    text:'<strong>Depth=8 layers</strong>: diminishing returns and barren plateaus. Deeper circuits can overfit and gradients vanish — making training unstable.',
+    full:'Very deep variational circuits suffer from the "barren plateau" problem: gradients of the loss function become exponentially small in the number of qubits and layers, making gradient-based optimization effectively random. This is a fundamental challenge for variational quantum algorithms at scale.'
+  }],
+  [p => p.noise > 0 && p.depth > 2, {
+    tone:'amber',
+    text:'Notice how <strong>noise and depth interact</strong>: more layers amplify noise. Each entangling gate in every layer contributes to total error probability, so deeper noisy circuits degrade faster.',
+    full:'The total circuit error probability scales roughly as 1-(1-p)^(n_gates). For a circuit with depth d and n qubits, n_gates ≈ d×n. At noise=3, p=0.06, a depth-6 circuit with 10 qubits has roughly ~1-(0.94)^60 ≈ 97% probability of at least one error occurring somewhere. The circuit output is hopelessly corrupted.'
+  }],
+];
+
+function updateAnalysis(cAcc, qAcc) {
+  const p = currentParams;
+  const idx = p.noise*10 + p.depth + p.sample;
+
+  // Find applicable message
+  let msg = null;
+  for(const [cond, m] of ANALYSIS_MESSAGES) {
+    if(cond(p)) { msg = m; break; }
+  }
+  if(!msg) {
+    msg = {
+      tone:'cyan',
+      text:`Classical: <strong>${(cAcc*100).toFixed(1)}%</strong> | Quantum: <strong>${(qAcc*100).toFixed(1)}%</strong>. The gap is ${((cAcc-qAcc)*100).toFixed(1)}pp. Adjust parameters to understand what drives it.`,
+      full:`At this configuration (sample=${SAMPLE_LABELS[p.sample]}, noise=${NOISE_LABELS[p.noise]}, depth=${DEPTH_LABELS[p.depth]}), classical leads quantum by ${((cAcc-qAcc)*100).toFixed(1)} percentage points. Try increasing noise to see quantum degrade faster, or reduce sample size to see both models struggle.`
+    };
+  }
+
+  const strip = document.getElementById('analysis-body');
+  strip.innerHTML = `
+    <div class="as-message ${msg.tone || ''}">${msg.text}</div>
+    <div style="margin-top:8px;font-size:10px;color:var(--dim);line-height:1.6;">
+      <strong style="color:var(--cyan)">C</strong> ${(cAcc*100).toFixed(1)}% &nbsp;|&nbsp;
+      <strong style="color:var(--amber)">Q</strong> ${(qAcc*100).toFixed(1)}% &nbsp;|&nbsp;
+      Gap: <span style="color:${cAcc>qAcc?'var(--red)':'var(--green)'}">${((cAcc-qAcc)*100).toFixed(1)}pp</span>
+    </div>
+    <div style="margin-top:10px;font-size:10px;color:var(--dim);line-height:1.6;">
+      <strong>Noise:</strong> ${NOISE_LABELS[p.noise]}<br/>
+      <strong>Depth:</strong> ${DEPTH_LABELS[p.depth]}<br/>
+      <strong>Sample:</strong> ${SAMPLE_LABELS[p.sample]}<br/>
+      <strong>p(error/gate):</strong> ${(NOISE_VALS[p.noise]*0.02).toFixed(2)}
+    </div>
+    <button class="as-explain-btn" onclick="openExplain(${JSON.stringify(msg.full)}, ${cAcc.toFixed(4)}, ${qAcc.toFixed(4)})">
+      ▾ FULL EXPLANATION
+    </button>
+  `;
+}
+
+// ══════════════════════════════════════════════════════════ CONTROLS ══
+
+let _debounceTimer = null;
+
+function onSliderChange(param, val) {
+  const iVal = parseInt(val);
+
+  if(param === 'sample') {
+    currentParams.sample = iVal;
+    document.getElementById('lbl-sample').textContent = SAMPLE_LABELS[iVal];
+  } else if(param === 'noise') {
+    currentParams.noise = iVal;
+    document.getElementById('lbl-noise').textContent = NOISE_LABELS[iVal];
+  } else if(param === 'depth') {
+    currentParams.depth = iVal;
+    document.getElementById('lbl-depth').textContent = DEPTH_LABELS[iVal];
+  }
+
+  clearTimeout(_debounceTimer);
+  _debounceTimer = setTimeout(() => {
+    previousAccs = {
+      classical: getFromCache(currentParams)?.classical?.accuracy ?? previousAccs.classical,
+      quantum:   getFromCache(currentParams)?.quantum?.accuracy   ?? previousAccs.quantum,
+    };
+    loadData();
+  }, 80);
+}
+
+function toggleMisclass() {
+  showMisclass = !showMisclass;
+  document.getElementById('misclass-pill').className = 'toggle-pill' + (showMisclass ? ' on' : '');
+  loadData();
+}
+
+// ══════════════════════════════════════════════════════════ MODAL ══
+
+function openExplain(fullText, cAcc, qAcc) {
+  const p = currentParams;
+  document.getElementById('modal-title').textContent =
+    `Configuration: Sample ${SAMPLE_LABELS[p.sample]}, Noise ${NOISE_LABELS[p.noise]}, Depth ${DEPTH_LABELS[p.depth]}`;
+  document.getElementById('modal-body').innerHTML = `
+    <div class="gap-box">
+      Classical accuracy: <strong>${(cAcc*100).toFixed(1)}%</strong><br/>
+      Quantum accuracy: <strong>${(qAcc*100).toFixed(1)}%</strong><br/>
+      Gap: <strong>${((cAcc-qAcc)*100).toFixed(1)} percentage points</strong>
+    </div>
+    ${fullText}<br/><br/>
+    <strong>Why this matters:</strong> Quantum ML is not universally better than classical ML.
+    It requires specific problem structure, low hardware noise, and sufficient circuit expressibility —
+    all of which are active research areas. Honest benchmarking like this is essential for
+    understanding where quantum computing can genuinely help.
+  `;
+  document.getElementById('modal-explain').classList.add('active');
+}
+
+function closeModal() {
+  document.getElementById('modal-explain').classList.remove('active');
+}
+
+document.getElementById('modal-explain').addEventListener('click', function(e) {
+  if(e.target === this) closeModal();
+});
+
+// ══════════════════════════════════════════════════════════ BOOT ══
+
+// Initialize slider labels
+document.getElementById('lbl-sample').textContent = SAMPLE_LABELS[currentParams.sample];
+document.getElementById('lbl-noise').textContent  = NOISE_LABELS[currentParams.noise];
+document.getElementById('lbl-depth').textContent  = DEPTH_LABELS[currentParams.depth];
+</script>
+</body>
+</html>

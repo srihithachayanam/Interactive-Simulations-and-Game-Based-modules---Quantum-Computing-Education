@@ -1,0 +1,11 @@
+# Ignore Python's internal cache files
+__pycache__/
+*.py[cod]
+
+# Ignore virtual environments
+venv/
+.env
+
+# Ignore system-specific files
+.DS_Store
+Thumbs.db   
